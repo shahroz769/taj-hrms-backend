@@ -20,7 +20,7 @@ connectDB();
 // CORS Config
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://5j93k6rg-5173.asse.devtunnels.ms",
+  "https://taj-hrms-frontend.vercel.app",
 ];
 
 app.use(
