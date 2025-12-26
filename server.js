@@ -2,8 +2,9 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
-import ideaRouter from "./routes/ideaRoutes.js";
+// import ideaRouter from "./routes/ideaRoutes.js";
 import authRouter from "./routes/authRoutes.js";
+import departmentRouter from "./routes/departmentRoutes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import connectDB from "./config/db.js";
 import chalk from "chalk";
@@ -19,6 +20,7 @@ connectDB();
 // CORS Config
 const allowedOrigins = [
   "http://localhost:5173",
+  "https://5j93k6rg-5173.asse.devtunnels.ms",
 ];
 
 app.use(
@@ -32,8 +34,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // Routes
-app.use("/api/ideas", ideaRouter);
+// app.use("/api/ideas", ideaRouter);
 app.use("/api/auth", authRouter);
+app.use("/api/departments", departmentRouter);
 
 // 404 Fallback
 app.use((req, res, next) => {

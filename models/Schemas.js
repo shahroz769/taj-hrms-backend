@@ -1,14 +1,16 @@
 import { Schema } from "mongoose";
 
 // 1. Department
-const departmentSchema = new Schema(
-  {
-    name: { type: String, required: true },
-    positionCount: { type: Number, default: 0, required: true },
-    employeeCount: { type: Number, default: 0 },
-  },
-  { timestamps: true }
-);
+// const departmentSchema = new Schema(
+//   {
+//     name: { type: String, required: true },
+//     positionCount: { type: Number },
+//     unlimitedPositions: { type: Boolean, default: false },
+//     employeeCount: { type: Number, default: 0 },
+//     user: { type: Schema.Types.ObjectId, ref: "User" },
+//   },
+//   { timestamps: true }
+// );
 
 // 2. Position
 const positionSchema = new Schema(
@@ -313,7 +315,7 @@ const payrollSchema = new Schema(
 );
 
 export {
-  departmentSchema,
+  // departmentSchema,
   positionSchema,
   employeeSchema,
   shiftSchema,

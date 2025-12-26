@@ -1,0 +1,215 @@
+import Department from "../models/Department.js";
+import mongoose from "mongoose";
+
+// @description     Get all departments
+// @route           GET /api/departments
+// @access          Admin
+export const getAllDepartments = async (req, res, next) => {
+  try {
+    // const { limit, isActive, search } = req.query;
+
+    // Build query
+    // const query = {};
+
+    // if (isActive !== undefined) {
+    //   query.isActive = isActive === "true";
+    // }
+
+    // if (search) {
+    //   query.name = { $regex: search, $options: "i" };
+    // }
+
+    //     const departmentsQuery = Department.find(query)
+    //       .populate("createdBy", "name username")
+    //       .sort({ createdAt: -1 });
+
+    //     if (limit && !isNaN(parseInt(limit))) {
+    //       departmentsQuery.limit(parseInt(limit));
+    //     }
+
+    //     const departments = await departmentsQuery.exec();
+    //     res.json(departments);
+    //   } catch (err) {
+    //     console.log(err);
+    //     next(err);
+    console.log("Fetching all departments...");
+    const departments = await Department.find()
+      .populate("createdBy", "name username")
+      .sort({ createdAt: -1 });
+    res.json(departments);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+};
+
+// @description     Get single department by ID
+// @route           GET /api/departments/:id
+// @access          Admin, Supervisor
+export const getDepartmentById = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(404);
+      throw new Error("Department Not Found");
+    }
+
+    const department = await Department.findById(id).populate(
+      "createdBy",
+      "name username"
+    );
+
+    if (!department) {
+      res.status(404);
+      throw new Error("Department Not Found");
+    }
+
+    res.json(department);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+};
+
+// @description     Create new department
+// @route           POST /api/departments
+// @access          Admin
+export const createDepartment = async (req, res, next) => {
+  try {
+    const { name, positionCount, description } = req.body || {};
+
+    if (!name?.trim() || !positionCount?.toString().trim()) {
+      res.status(400);
+      throw new Error("Department name and position count are required");
+    }
+
+    // Check if department already exists
+    const existingDepartment = await Department.findOne({
+      name: { $regex: new RegExp(`^${name.trim()}$`, "i") },
+    });
+
+    if (existingDepartment) {
+      res.status(400);
+      throw new Error("Department with this name already exists");
+    }
+
+    const newDepartment = new Department({
+      name: name.trim(),
+      positionCount: positionCount,
+      createdBy: req.user._id,
+    });
+
+    const savedDepartment = await newDepartment.save();
+    await savedDepartment.populate("createdBy", "name username");
+
+    res.status(201).json(savedDepartment);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+};
+
+// @description     Update department
+// @route           PUT /api/departments/:id
+// @access          Admin
+export const updateDepartment = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(404);
+      throw new Error("Department Not Found");
+    }
+
+    const department = await Department.findById(id);
+
+    if (!department) {
+      res.status(404);
+      throw new Error("Department not found");
+    }
+
+    const { name, positionCount, unlimitedPositions, description, isActive } =
+      req.body || {};
+
+    // Check if new name conflicts with existing department
+    if (name && name.trim() !== department.name) {
+      const existingDepartment = await Department.findOne({
+        name: { $regex: new RegExp(`^${name.trim()}$`, "i") },
+        _id: { $ne: id },
+      });
+
+      if (existingDepartment) {
+        res.status(400);
+        throw new Error("Department with this name already exists");
+      }
+      department.name = name.trim();
+    }
+
+    if (positionCount !== undefined) {
+      department.positionCount = positionCount;
+    }
+
+    if (unlimitedPositions !== undefined) {
+      department.unlimitedPositions = unlimitedPositions;
+    }
+
+    if (description !== undefined) {
+      department.description = description?.trim();
+    }
+
+    if (isActive !== undefined) {
+      department.isActive = isActive;
+    }
+
+    const updatedDepartment = await department.save();
+    await updatedDepartment.populate("createdBy", "name username");
+
+    res.json(updatedDepartment);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+};
+
+// @description     Delete department
+// @route           DELETE /api/departments/:id
+// @access          Admin
+export const deleteDepartment = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(404);
+      throw new Error("Department Not Found");
+    }
+
+    const department = await Department.findById(id);
+
+    if (!department) {
+      res.status(404);
+      throw new Error("Department not found");
+    }
+
+    // Check if department has employees
+    if (department.employeeCount > 0) {
+      res.status(400);
+      throw new Error(
+        "Cannot delete department with active employees. Please reassign employees first."
+      );
+    }
+
+    await department.deleteOne();
+
+    res.json({
+      message: "Department deleted successfully",
+      deletedDepartment: {
+        id: department._id,
+        name: department.name,
+      },
+    });
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+};
