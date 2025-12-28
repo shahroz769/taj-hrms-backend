@@ -15,7 +15,7 @@ const positionSchema = new mongoose.Schema(
     },
     employeeLimit: {
       type: String,
-      required: [true, "Employee Limit name is required"],
+      required: [true, "Employee Limit is required"],
     },
   },
   { timestamps: true }

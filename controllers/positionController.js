@@ -73,40 +73,43 @@ export const getAllPositions = async (req, res, next) => {
 // @description     Create new department
 // @route           POST /api/departments
 // @access          Admin
-// export const createDepartment = async (req, res, next) => {
-//   try {
-//     const { name, positionCount } = req.body || {};
+export const createDepartment = async (req, res, next) => {
+  try {
+    const { name, department, reportsTo, employeeLimit } = req.body || {};
 
-//     if (!name?.trim() || !positionCount?.toString().trim()) {
-//       res.status(400);
-//       throw new Error("Department name and position count are required");
-//     }
+    if (
+      (!name?.trim(), !department?.trim() || !employeeLimit?.toString().trim())
+    ) {
+      res.status(400);
+      throw new Error("Department name and position count are required");
+    }
 
-//     // Check if department already exists
-//     const existingDepartment = await Department.findOne({
-//       name: { $regex: new RegExp(`^${name.trim()}$`, "i") },
-//     });
+    // Check if department already exists
+    const existingPosition = await Position.findOne({
+      name: { $regex: new RegExp(`^${name.trim()}$`, "i") },
+    });
 
-//     if (existingDepartment) {
-//       res.status(400);
-//       throw new Error("Department with this name already exists");
-//     }
+    if (existingPosition) {
+      res.status(400);
+      throw new Error("Position with this name already exists");
+    }
 
-//     const newDepartment = new Department({
-//       name: name.trim(),
-//       positionCount: positionCount,
-//       createdBy: req.user._id,
-//     });
+    const newPosition = new Position({
+      name: name.trim(),
+      department: department,
+      reportsTo: reportsTo,
+      employeeLimit: employeeLimit,
+      createdBy: req.user._id,
+    });
 
-//     const savedDepartment = await newDepartment.save();
-//     await savedDepartment.populate("createdBy", "name username");
+    const savedPosition = await newPosition.save();
 
-//     res.status(201).json(savedDepartment);
-//   } catch (err) {
-//     console.log(err);
-//     next(err);
-//   }
-// };
+    res.status(201).json(savedPosition);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+};
 
 // @description     Update department
 // @route           PUT /api/departments/:id

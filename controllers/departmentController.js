@@ -98,7 +98,6 @@ export const createDepartment = async (req, res, next) => {
     });
 
     const savedDepartment = await newDepartment.save();
-    await savedDepartment.populate("createdBy", "name username");
 
     res.status(201).json(savedDepartment);
   } catch (err) {

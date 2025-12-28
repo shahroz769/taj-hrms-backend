@@ -10,7 +10,7 @@ const departmentSchema = new mongoose.Schema(
     },
     positionCount: {
       type: String,
-      required: [true, "Position count name is required"],
+      required: [true, "Position count is required"],
     },
     employeeCount: {
       type: Number,
