@@ -24,7 +24,6 @@ export const getAllDepartments = async (req, res, next) => {
 
     // Get paginated departments
     const departments = await Department.find(query)
-      .populate("createdBy", "name username")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);

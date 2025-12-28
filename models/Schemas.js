@@ -13,26 +13,26 @@ import { Schema } from "mongoose";
 // );
 
 // 2. Position
-const positionSchema = new Schema(
-  {
-    name: { type: String, required: true },
-    department: {
-      type: Schema.Types.ObjectId,
-      ref: "Department",
-      required: true,
-    },
-    reportsTo: { type: Schema.Types.ObjectId, ref: "Position", required: true },
-    employeeLimit: { type: Number, required: true },
-  },
-  { timestamps: true }
-);
-// Virtual to get current hired count from Employee collection
-positionSchema.virtual("hiredCount", {
-  ref: "Employee",
-  localField: "_id",
-  foreignField: "position",
-  count: true,
-});
+// const positionSchema = new Schema(
+//   {
+//     name: { type: String, required: true },
+//     department: {
+//       type: Schema.Types.ObjectId,
+//       ref: "Department",
+//       required: true,
+//     },
+//     reportsTo: { type: Schema.Types.ObjectId, ref: "Position", required: true },
+//     employeeLimit: { type: Number, required: true },
+//   },
+//   { timestamps: true }
+// );
+// // Virtual to get current hired count from Employee collection
+// positionSchema.virtual("hiredCount", {
+//   ref: "Employee",
+//   localField: "_id",
+//   foreignField: "position",
+//   count: true,
+// });
 
 // 3. Employee
 const employeeSchema = new Schema(
@@ -316,7 +316,7 @@ const payrollSchema = new Schema(
 
 export {
   // departmentSchema,
-  positionSchema,
+  // positionSchema,
   employeeSchema,
   shiftSchema,
   shiftAssignmentSchema,

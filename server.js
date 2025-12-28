@@ -2,9 +2,9 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
-// import ideaRouter from "./routes/ideaRoutes.js";
 import authRouter from "./routes/authRoutes.js";
 import departmentRouter from "./routes/departmentRoutes.js";
+import positionRouter from "./routes/positionRoutes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import connectDB from "./config/db.js";
 import chalk from "chalk";
@@ -37,6 +37,7 @@ app.use(cookieParser());
 // app.use("/api/ideas", ideaRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/departments", departmentRouter);
+app.use("/api/positions", positionRouter);
 
 // 404 Fallback
 app.use((req, res, next) => {
