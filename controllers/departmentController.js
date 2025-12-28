@@ -32,7 +32,6 @@ export const getAllDepartments = async (req, res, next) => {
     //   } catch (err) {
     //     console.log(err);
     //     next(err);
-    console.log("Fetching all departments...");
     const departments = await Department.find()
       .populate("createdBy", "name username")
       .sort({ createdAt: -1 });
@@ -45,7 +44,7 @@ export const getAllDepartments = async (req, res, next) => {
 
 // @description     Get single department by ID
 // @route           GET /api/departments/:id
-// @access          Admin, Supervisor
+// @access          Admin
 export const getDepartmentById = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -55,10 +54,7 @@ export const getDepartmentById = async (req, res, next) => {
       throw new Error("Department Not Found");
     }
 
-    const department = await Department.findById(id).populate(
-      "createdBy",
-      "name username"
-    );
+    const department = await Department.findById(id);
 
     if (!department) {
       res.status(404);
@@ -77,7 +73,7 @@ export const getDepartmentById = async (req, res, next) => {
 // @access          Admin
 export const createDepartment = async (req, res, next) => {
   try {
-    const { name, positionCount, description } = req.body || {};
+    const { name, positionCount } = req.body || {};
 
     if (!name?.trim() || !positionCount?.toString().trim()) {
       res.status(400);
@@ -116,6 +112,7 @@ export const createDepartment = async (req, res, next) => {
 export const updateDepartment = async (req, res, next) => {
   try {
     const { id } = req.params;
+    console.log(id, req.body);
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       res.status(404);
@@ -129,8 +126,12 @@ export const updateDepartment = async (req, res, next) => {
       throw new Error("Department not found");
     }
 
-    const { name, positionCount, unlimitedPositions, description, isActive } =
-      req.body || {};
+    const { name, positionCount } = req.body || {};
+
+    // if (!name?.trim() || !positionCount?.toString().trim()) {
+    //   res.status(400);
+    //   throw new Error("Department name and position count are required");
+    // }
 
     // Check if new name conflicts with existing department
     if (name && name.trim() !== department.name) {
@@ -150,20 +151,11 @@ export const updateDepartment = async (req, res, next) => {
       department.positionCount = positionCount;
     }
 
-    if (unlimitedPositions !== undefined) {
-      department.unlimitedPositions = unlimitedPositions;
-    }
-
-    if (description !== undefined) {
-      department.description = description?.trim();
-    }
-
-    if (isActive !== undefined) {
-      department.isActive = isActive;
-    }
+    // if (isActive !== undefined) {
+    //   department.isActive = isActive;
+    // }
 
     const updatedDepartment = await department.save();
-    await updatedDepartment.populate("createdBy", "name username");
 
     res.json(updatedDepartment);
   } catch (err) {
