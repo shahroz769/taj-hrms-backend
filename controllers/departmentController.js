@@ -6,36 +6,38 @@ import mongoose from "mongoose";
 // @access          Admin
 export const getAllDepartments = async (req, res, next) => {
   try {
-    // const { limit, isActive, search } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const searchText = req.query.search || "";
 
-    // Build query
-    // const query = {};
+    // Build search query
+    const query = {};
+    if (searchText.trim()) {
+      query.name = { $regex: searchText.trim(), $options: "i" };
+    }
 
-    // if (isActive !== undefined) {
-    //   query.isActive = isActive === "true";
-    // }
+    // Calculate skip value for pagination
+    const skip = (page - 1) * limit;
 
-    // if (search) {
-    //   query.name = { $regex: search, $options: "i" };
-    // }
+    // Get total count for pagination metadata
+    const totalDepartments = await Department.countDocuments(query);
 
-    //     const departmentsQuery = Department.find(query)
-    //       .populate("createdBy", "name username")
-    //       .sort({ createdAt: -1 });
-
-    //     if (limit && !isNaN(parseInt(limit))) {
-    //       departmentsQuery.limit(parseInt(limit));
-    //     }
-
-    //     const departments = await departmentsQuery.exec();
-    //     res.json(departments);
-    //   } catch (err) {
-    //     console.log(err);
-    //     next(err);
-    const departments = await Department.find()
+    // Get paginated departments
+    const departments = await Department.find(query)
       .populate("createdBy", "name username")
-      .sort({ createdAt: -1 });
-    res.json(departments);
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    res.json({
+      departments,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(totalDepartments / limit),
+        totalDepartments,
+        limit,
+      },
+    });
   } catch (err) {
     console.log(err);
     next(err);
