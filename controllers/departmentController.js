@@ -49,7 +49,7 @@ export const getAllDepartments = async (req, res, next) => {
 export const getAllDepartmentsList = async (req, res, next) => {
   try {
     const departments = await Department.find()
-      .sort({ createdAt: -1 })
+      .sort({ name: 1 })
       .select("_id name");
 
     res.json(departments);
