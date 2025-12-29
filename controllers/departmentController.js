@@ -43,6 +43,22 @@ export const getAllDepartments = async (req, res, next) => {
   }
 };
 
+// @description     Get all departments list for select options
+// @route           GET /api/departments/list
+// @access          Admin
+export const getAllDepartmentsList = async (req, res, next) => {
+  try {
+    const departments = await Department.find()
+      .sort({ createdAt: -1 })
+      .select("_id name");
+
+    res.json(departments);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+};
+
 // @description     Get single department by ID
 // @route           GET /api/departments/:id
 // @access          Admin

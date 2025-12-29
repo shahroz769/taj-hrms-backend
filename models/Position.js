@@ -8,10 +8,13 @@ const positionSchema = new mongoose.Schema(
       ref: "Department",
       required: true,
     },
+    // reportsTo: {
+    //   type: mongoose.Schema.Types.ObjectId,
+    //   ref: "Employee",
+    //   default: null,
+    // },
     reportsTo: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Employee",
-      default: null,
+      type: String,
     },
     employeeLimit: {
       type: String,

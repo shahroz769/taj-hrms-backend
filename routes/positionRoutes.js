@@ -3,7 +3,7 @@ import { protect } from "../middleware/authMiddleware.js";
 import {
   getAllPositions,
   getPositionById,
-  //   createPosition,
+  createPosition,
   //   deletePosition,
   //   updatePosition,
 } from "../controllers/positionController.js";
@@ -30,7 +30,7 @@ router.get(
 // @route           POST /api/positions
 // @description     Create new position
 // @access          Admin only
-// router.post("/", protect, authorize(ROLES.admin), createPosition);
+router.post("/", protect, authorize(ROLES.admin), createPosition);
 
 // @route           PUT /api/positions/:id
 // @description     Update position

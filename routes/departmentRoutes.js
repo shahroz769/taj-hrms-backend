@@ -6,6 +6,7 @@ import {
   createDepartment,
   deleteDepartment,
   updateDepartment,
+  getAllDepartmentsList,
 } from "../controllers/departmentController.js";
 import { authorize } from "../middleware/rbacMiddleware.js";
 import { ROLES } from "../utils/roles.js";
@@ -16,6 +17,11 @@ const router = express.Router();
 // @description     Get all departments
 // @access          Admin
 router.get("/", protect, authorize(ROLES.admin), getAllDepartments);
+
+// @description     Get all departments list for select options
+// @route           GET /api/departments/list
+// @access          Admin
+router.get("/list", protect, authorize(ROLES.admin), getAllDepartmentsList);
 
 // @route           GET /api/departments/:id
 // @description     Get single department

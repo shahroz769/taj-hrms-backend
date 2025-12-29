@@ -75,13 +75,13 @@ export const getPositionById = async (req, res, next) => {
 // @access          Admin
 export const createPosition = async (req, res, next) => {
   try {
-    const { name, department, reportsTo, employeeLimit } = req.body || {};
+    const { name, reportsTo, employeeLimit, department } = req.body || {};
 
     if (
-      (!name?.trim(), !department?.trim() || !employeeLimit?.toString().trim())
+      (!name?.trim() || !employeeLimit?.toString().trim() || !reportsTo?.trim() || !department?.trim())
     ) {
       res.status(400);
-      throw new Error("Position name and department are required");
+      throw new Error("Position name, employee limit, reports to and department are required");
     }
 
     // Check if department already exists
