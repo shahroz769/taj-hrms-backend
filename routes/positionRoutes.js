@@ -4,8 +4,8 @@ import {
   getAllPositions,
   getPositionById,
   createPosition,
-  //   deletePosition,
-  //   updatePosition,
+  deletePosition,
+  updatePosition,
 } from "../controllers/positionController.js";
 import { authorize } from "../middleware/rbacMiddleware.js";
 import { ROLES } from "../utils/roles.js";
@@ -35,11 +35,11 @@ router.post("/", protect, authorize(ROLES.admin), createPosition);
 // @route           PUT /api/positions/:id
 // @description     Update position
 // @access          Admin only
-// router.put("/:id", protect, authorize(ROLES.admin), updatePosition);
+router.put("/:id", protect, authorize(ROLES.admin), updatePosition);
 
 // @route           DELETE /api/positions/:id
 // @description     Delete position
 // @access          Admin only
-// router.delete("/:id", protect, authorize(ROLES.admin), deletePosition);
+router.delete("/:id", protect, authorize(ROLES.admin), deletePosition);
 
 export default router;

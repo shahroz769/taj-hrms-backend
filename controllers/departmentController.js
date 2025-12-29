@@ -1,4 +1,5 @@
 import Department from "../models/Department.js";
+import Position from "../models/Position.js";
 import mongoose from "mongoose";
 
 // @description     Get all departments
@@ -164,6 +165,28 @@ export const updateDepartment = async (req, res, next) => {
     }
 
     if (positionCount !== undefined) {
+      const newLimit = positionCount?.toString().trim().toLowerCase();
+      
+      // If the new limit is not "unlimited", validate against current position count
+      if (newLimit && newLimit !== "unlimited") {
+        const parsedLimit = parseInt(newLimit, 10);
+        
+        if (isNaN(parsedLimit)) {
+          res.status(400);
+          throw new Error("Position count must be a valid number or 'unlimited'");
+        }
+        
+        // Count current positions in this department
+        const currentPositionCount = await Position.countDocuments({ department: id });
+        
+        if (parsedLimit < currentPositionCount) {
+          res.status(400);
+          throw new Error(
+            `Cannot set position limit to ${parsedLimit}. Department currently has ${currentPositionCount} position(s). Please remove positions first or set a higher limit.`
+          );
+        }
+      }
+      
       department.positionCount = positionCount;
     }
 
@@ -197,6 +220,15 @@ export const deleteDepartment = async (req, res, next) => {
     if (!department) {
       res.status(404);
       throw new Error("Department not found");
+    }
+
+    // Check if department has positions
+    const positionCount = await Position.countDocuments({ department: id });
+    if (positionCount > 0) {
+      res.status(400);
+      throw new Error(
+        `Cannot delete department with ${positionCount} active position(s). Please delete or reassign positions first.`
+      );
     }
 
     // Check if department has employees

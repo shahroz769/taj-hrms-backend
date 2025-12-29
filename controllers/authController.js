@@ -27,7 +27,7 @@ export const register = async (req, res, next) => {
 
     // Create Tokens
     const payload = { userId: user._id.toString(), role: user.role };
-    const accessToken = await generateToken(payload, "1m");
+    const accessToken = await generateToken(payload, "15m");
     const refreshToken = await generateToken(payload, "30d");
 
     // Set refresh token in HTTP-Only cookie
@@ -83,7 +83,7 @@ export const login = async (req, res, next) => {
 
     // Create Tokens
     const payload = { userId: user._id.toString(), role: user.role };
-    const accessToken = await generateToken(payload, "1m");
+    const accessToken = await generateToken(payload, "15m");
     const refreshToken = await generateToken(payload, "30d");
 
     // Set refresh token in HTTP-Only cookie
@@ -148,7 +148,7 @@ export const refresh = async (req, res, next) => {
 
     const newAccessToken = await generateToken(
       { userId: user._id.toString(), role: user.role },
-      "1m"
+      "15m"
     );
 
     res.json({
