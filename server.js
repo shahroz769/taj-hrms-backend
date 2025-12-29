@@ -35,8 +35,8 @@ app.use(cookieParser());
 
 // Routes
 // app.use("/api/ideas", ideaRouter);
-app.use("/", (req, res) => {
-  res.send(`Server is running`);
+app.get("/", (req, res) => {
+  res.send(`Server is running on port ${PORT}`);
 });
 app.use("/api/auth", authRouter);
 app.use("/api/departments", departmentRouter);

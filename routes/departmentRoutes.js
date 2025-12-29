@@ -19,11 +19,11 @@ router.get("/", protect, authorize(ROLES.admin), getAllDepartments);
 
 // @route           GET /api/departments/:id
 // @description     Get single department
-// @access          Admin, Supervisor
+// @access          Admin
 router.get(
   "/:id",
   protect,
-  authorize(ROLES.admin, ROLES.supervisor),
+  authorize(ROLES.admin),
   getDepartmentById
 );
 

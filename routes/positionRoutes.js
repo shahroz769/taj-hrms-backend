@@ -2,10 +2,10 @@ import express from "express";
 import { protect } from "../middleware/authMiddleware.js";
 import {
   getAllPositions,
-//   getPositionById,
-//   createPosition,
-//   deletePosition,
-//   updatePosition,
+  getPositionById,
+  //   createPosition,
+  //   deletePosition,
+  //   updatePosition,
 } from "../controllers/positionController.js";
 import { authorize } from "../middleware/rbacMiddleware.js";
 import { ROLES } from "../utils/roles.js";
@@ -19,13 +19,13 @@ router.get("/", protect, authorize(ROLES.admin), getAllPositions);
 
 // @route           GET /api/positions/:id
 // @description     Get single position
-// @access          Admin, Supervisor
-// router.get(
-//   "/:id",
-//   protect,
-//   authorize(ROLES.admin, ROLES.supervisor),
-//   getPositionById
-// );
+// @access          Admin
+router.get(
+  "/:id",
+  protect,
+  authorize(ROLES.admin),
+  getPositionById
+);
 
 // @route           POST /api/positions
 // @description     Create new position

@@ -44,36 +44,36 @@ export const getAllPositions = async (req, res, next) => {
   }
 };
 
-// @description     Get single department by ID
-// @route           GET /api/departments/:id
+// @description     Get single position by ID
+// @route           GET /api/positions/:id
 // @access          Admin
-// export const getDepartmentById = async (req, res, next) => {
-//   try {
-//     const { id } = req.params;
+export const getPositionById = async (req, res, next) => {
+  try {
+    const { id } = req.params;
 
-//     if (!mongoose.Types.ObjectId.isValid(id)) {
-//       res.status(404);
-//       throw new Error("Department Not Found");
-//     }
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(404);
+      throw new Error("Position Not Found");
+    }
 
-//     const department = await Department.findById(id);
+    const position = await Position.findById(id);
 
-//     if (!department) {
-//       res.status(404);
-//       throw new Error("Department Not Found");
-//     }
+    if (!position) {
+      res.status(404);
+      throw new Error("Position Not Found");
+    }
 
-//     res.json(department);
-//   } catch (err) {
-//     console.log(err);
-//     next(err);
-//   }
-// };
+    res.json(position);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+};
 
-// @description     Create new department
-// @route           POST /api/departments
+// @description     Create new position
+// @route           POST /api/positions
 // @access          Admin
-export const createDepartment = async (req, res, next) => {
+export const createPosition = async (req, res, next) => {
   try {
     const { name, department, reportsTo, employeeLimit } = req.body || {};
 
@@ -81,7 +81,7 @@ export const createDepartment = async (req, res, next) => {
       (!name?.trim(), !department?.trim() || !employeeLimit?.toString().trim())
     ) {
       res.status(400);
-      throw new Error("Department name and position count are required");
+      throw new Error("Position name and department are required");
     }
 
     // Check if department already exists
@@ -169,44 +169,44 @@ export const createDepartment = async (req, res, next) => {
 //   }
 // };
 
-// @description     Delete department
-// @route           DELETE /api/departments/:id
+// @description     Delete position
+// @route           DELETE /api/positions/:id
 // @access          Admin
-// export const deleteDepartment = async (req, res, next) => {
-//   try {
-//     const { id } = req.params;
+export const deletePosition = async (req, res, next) => {
+  try {
+    const { id } = req.params;
 
-//     if (!mongoose.Types.ObjectId.isValid(id)) {
-//       res.status(404);
-//       throw new Error("Department Not Found");
-//     }
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(404);
+      throw new Error("Position Not Found");
+    }
 
-//     const department = await Department.findById(id);
+    const position = await Position.findById(id);
 
-//     if (!department) {
-//       res.status(404);
-//       throw new Error("Department not found");
-//     }
+    if (!position) {
+      res.status(404);
+      throw new Error("Position not found");
+    }
 
-// Check if department has employees
-//     if (department.employeeCount > 0) {
-//       res.status(400);
-//       throw new Error(
-//         "Cannot delete department with active employees. Please reassign employees first."
-//       );
-//     }
+// Check if position has employees
+    if (position.employeeCount > 0) {
+      res.status(400);
+      throw new Error(
+        "Cannot delete position with active employees. Please reassign employees first."
+      );
+    }
 
-//     await department.deleteOne();
+    await position.deleteOne();
 
-//     res.json({
-//       message: "Department deleted successfully",
-//       deletedDepartment: {
-//         id: department._id,
-//         name: department.name,
-//       },
-//     });
-//   } catch (err) {
-//     console.log(err);
-//     next(err);
-//   }
-// };
+    res.json({
+      message: "Position deleted successfully",
+      deletedPosition: {
+        id: position._id,
+        name: position.name,
+      },
+    });
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+};
