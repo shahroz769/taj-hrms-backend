@@ -35,6 +35,9 @@ app.use(cookieParser());
 
 // Routes
 // app.use("/api/ideas", ideaRouter);
+app.use("/", (req, res) => {
+  res.send(`Server is running`);
+});
 app.use("/api/auth", authRouter);
 app.use("/api/departments", departmentRouter);
 app.use("/api/positions", positionRouter);
