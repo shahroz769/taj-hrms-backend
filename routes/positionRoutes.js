@@ -6,6 +6,7 @@ import {
   createPosition,
   deletePosition,
   updatePosition,
+  getAllPositionsFiltersList,
 } from "../controllers/positionController.js";
 import { authorize } from "../middleware/rbacMiddleware.js";
 import { ROLES } from "../utils/roles.js";
@@ -17,15 +18,15 @@ const router = express.Router();
 // @access          Admin
 router.get("/", protect, authorize(ROLES.admin), getAllPositions);
 
+// @route           GET /api/positions/filters
+// @description     Get all positions for filter
+// @access          Admin
+router.get("/filters", protect, authorize(ROLES.admin), getAllPositionsFiltersList);
+
 // @route           GET /api/positions/:id
 // @description     Get single position
 // @access          Admin
-router.get(
-  "/:id",
-  protect,
-  authorize(ROLES.admin),
-  getPositionById
-);
+router.get("/:id", protect, authorize(ROLES.admin), getPositionById);
 
 // @route           POST /api/positions
 // @description     Create new position

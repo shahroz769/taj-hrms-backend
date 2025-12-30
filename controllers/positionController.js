@@ -45,6 +45,23 @@ export const getAllPositions = async (req, res, next) => {
   }
 };
 
+// @description     Get all positions, reportsTo, departments for filter
+// @route           GET /api/positions/filters
+// @access          Admin
+export const getAllPositionsFiltersList = async (req, res, next) => {
+  try {
+    const positionsFiltersList = await Position.find()
+      .populate("department", "name")
+      .select("name reportsTo department");
+    res.json({
+      positionsFiltersList,
+    });
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+};
+
 // @description     Get single position by ID
 // @route           GET /api/positions/:id
 // @access          Admin
@@ -79,10 +96,15 @@ export const createPosition = async (req, res, next) => {
     const { name, reportsTo, employeeLimit, department } = req.body || {};
 
     if (
-      (!name?.trim() || !employeeLimit?.toString().trim() || !reportsTo?.trim() || !department?.trim())
+      !name?.trim() ||
+      !employeeLimit?.toString().trim() ||
+      !reportsTo?.trim() ||
+      !department?.trim()
     ) {
       res.status(400);
-      throw new Error("Position name, employee limit, reports to and department are required");
+      throw new Error(
+        "Position name, employee limit, reports to and department are required"
+      );
     }
 
     // Validate department ID
@@ -99,20 +121,24 @@ export const createPosition = async (req, res, next) => {
     }
 
     // Check position count limit for the department
-    const positionCountLimit = departmentDoc.positionCount?.trim().toLowerCase();
-    
+    const positionCountLimit = departmentDoc.positionCount
+      ?.trim()
+      .toLowerCase();
+
     if (positionCountLimit && positionCountLimit !== "unlimited") {
       // Count current positions in this department
-      const currentPositionCount = await Position.countDocuments({ department: department });
-      
+      const currentPositionCount = await Position.countDocuments({
+        department: department,
+      });
+
       // Parse the limit as a number
       const limit = parseInt(positionCountLimit, 10);
-      
+
       if (isNaN(limit)) {
         res.status(400);
         throw new Error("Invalid position count limit in department");
       }
-      
+
       // Check if limit is reached
       if (currentPositionCount >= limit) {
         res.status(400);
@@ -130,7 +156,9 @@ export const createPosition = async (req, res, next) => {
 
     if (existingPosition) {
       res.status(400);
-      throw new Error("Position with this name already exists in this department");
+      throw new Error(
+        "Position with this name already exists in this department"
+      );
     }
 
     const newPosition = new Position({
@@ -171,9 +199,16 @@ export const updatePosition = async (req, res, next) => {
 
     const { name, reportsTo, employeeLimit, department } = req.body || {};
 
-    if (!name?.trim() || !employeeLimit?.toString().trim() || !reportsTo?.trim() || !department?.trim()) {
+    if (
+      !name?.trim() ||
+      !employeeLimit?.toString().trim() ||
+      !reportsTo?.trim() ||
+      !department?.trim()
+    ) {
       res.status(400);
-      throw new Error("Position name, employee limit, reports to and department are required");
+      throw new Error(
+        "Position name, employee limit, reports to and department are required"
+      );
     }
 
     // Validate department ID
@@ -191,20 +226,24 @@ export const updatePosition = async (req, res, next) => {
 
     // If department is being changed, check position limit for new department
     if (department !== position.department.toString()) {
-      const positionCountLimit = departmentDoc.positionCount?.trim().toLowerCase();
-      
+      const positionCountLimit = departmentDoc.positionCount
+        ?.trim()
+        .toLowerCase();
+
       if (positionCountLimit && positionCountLimit !== "unlimited") {
         // Count current positions in the new department
-        const currentPositionCount = await Position.countDocuments({ department: department });
-        
+        const currentPositionCount = await Position.countDocuments({
+          department: department,
+        });
+
         // Parse the limit as a number
         const limit = parseInt(positionCountLimit, 10);
-        
+
         if (isNaN(limit)) {
           res.status(400);
           throw new Error("Invalid position count limit in department");
         }
-        
+
         // Check if limit is reached
         if (currentPositionCount >= limit) {
           res.status(400);
@@ -216,7 +255,10 @@ export const updatePosition = async (req, res, next) => {
     }
 
     // Check if new name conflicts with existing position in the target department
-    if (name.trim() !== position.name || department !== position.department.toString()) {
+    if (
+      name.trim() !== position.name ||
+      department !== position.department.toString()
+    ) {
       const existingPosition = await Position.findOne({
         name: { $regex: new RegExp(`^${name.trim()}$`, "i") },
         department: department,
@@ -225,7 +267,9 @@ export const updatePosition = async (req, res, next) => {
 
       if (existingPosition) {
         res.status(400);
-        throw new Error("Position with this name already exists in this department");
+        throw new Error(
+          "Position with this name already exists in this department"
+        );
       }
     }
 
@@ -263,7 +307,7 @@ export const deletePosition = async (req, res, next) => {
       throw new Error("Position not found");
     }
 
-// Check if position has employees
+    // Check if position has employees
     if (position.hiredEmployees > 0) {
       res.status(400);
       throw new Error(
