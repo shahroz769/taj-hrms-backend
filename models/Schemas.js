@@ -137,22 +137,22 @@ const employeeSchema = new Schema(
 );
 
 // 4. Shift
-const shiftSchema = new Schema(
-  {
-    name: { type: String, required: true },
-    startTime: { type: String, required: true },
-    endTime: { type: String, required: true },
-    breaks: [
-      {
-        startTime: { type: String, required: true },
-        endTime: { type: String, required: true },
-      },
-    ],
-    workingDays: [{ type: Number, required: true }],
-    createdBy: { type: Schema.Types.ObjectId, ref: "Employee" },
-  },
-  { timestamps: true }
-);
+// const shiftSchema = new Schema(
+//   {
+//     name: { type: String, required: true },
+//     startTime: { type: String, required: true },
+//     endTime: { type: String, required: true },
+//     breaks: [
+//       {
+//         startTime: { type: String, required: true },
+//         endTime: { type: String, required: true },
+//       },
+//     ],
+//     workingDays: [{ type: Number, required: true }],
+//     createdBy: { type: Schema.Types.ObjectId, ref: "Employee" },
+//   },
+//   { timestamps: true }
+// );
 
 // 5. ShiftAssignment (History)
 const shiftAssignmentSchema = new Schema(
@@ -318,7 +318,7 @@ export {
   // departmentSchema,
   // positionSchema,
   employeeSchema,
-  shiftSchema,
+  // shiftSchema,
   shiftAssignmentSchema,
   attendanceSchema,
   leavePolicySchema,

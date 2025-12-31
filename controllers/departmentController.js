@@ -51,6 +51,7 @@ export const getAllDepartmentsList = async (req, res, next) => {
   try {
     const departments = await Department.find()
       .sort({ name: 1 })
+      .collation({ locale: "en", strength: 2 })
       .select("_id name");
 
     res.json(departments);
@@ -166,19 +167,23 @@ export const updateDepartment = async (req, res, next) => {
 
     if (positionCount !== undefined) {
       const newLimit = positionCount?.toString().trim().toLowerCase();
-      
+
       // If the new limit is not "unlimited", validate against current position count
       if (newLimit && newLimit !== "unlimited") {
         const parsedLimit = parseInt(newLimit, 10);
-        
+
         if (isNaN(parsedLimit)) {
           res.status(400);
-          throw new Error("Position count must be a valid number or 'unlimited'");
+          throw new Error(
+            "Position count must be a valid number or 'unlimited'"
+          );
         }
-        
+
         // Count current positions in this department
-        const currentPositionCount = await Position.countDocuments({ department: id });
-        
+        const currentPositionCount = await Position.countDocuments({
+          department: id,
+        });
+
         if (parsedLimit < currentPositionCount) {
           res.status(400);
           throw new Error(
@@ -186,7 +191,7 @@ export const updateDepartment = async (req, res, next) => {
           );
         }
       }
-      
+
       department.positionCount = positionCount;
     }
 
