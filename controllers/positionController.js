@@ -10,11 +10,25 @@ export const getAllPositions = async (req, res, next) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const searchText = req.query.search || "";
+    const departmentFilter = req.query.department || "";
+    const reportsToFilter = req.query.reportsTo || "";
 
-    // Build search query
+    // Build search and filter query
     const query = {};
+
+    // Search by position name
     if (searchText.trim()) {
       query.name = { $regex: searchText.trim(), $options: "i" };
+    }
+
+    // Filter by department
+    if (departmentFilter.trim()) {
+      query.department = departmentFilter.trim();
+    }
+
+    // Filter by reportsTo
+    if (reportsToFilter.trim()) {
+      query.reportsTo = reportsToFilter.trim();
     }
 
     // Calculate skip value for pagination
@@ -26,6 +40,7 @@ export const getAllPositions = async (req, res, next) => {
     // Get paginated positions
     const positions = await Position.find(query)
       .populate("department", "name")
+      .populate("reportsTo", "name")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);

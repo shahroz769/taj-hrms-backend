@@ -38,10 +38,14 @@ const shiftSchema = new mongoose.Schema(
       default: "Pending",
     },
     createdBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Employee",
+      type: String,
       required: true,
     },
+    // createdBy: {
+    //   type: mongoose.Schema.Types.ObjectId,
+    //   ref: "Employee",
+    //   required: true,
+    // },
   },
   { timestamps: true }
 );
