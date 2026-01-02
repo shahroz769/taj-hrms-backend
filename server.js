@@ -7,6 +7,7 @@ import departmentRouter from "./routes/departmentRoutes.js";
 import positionRouter from "./routes/positionRoutes.js";
 import shiftRouter from "./routes/shiftRoutes.js";
 import leaveTypeRouter from "./routes/leaveTypeRoutes.js";
+import leavePolicyRouter from "./routes/leavePolicyRoutes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import connectDB from "./config/db.js";
 import chalk from "chalk";
@@ -45,6 +46,7 @@ app.use("/api/departments", departmentRouter);
 app.use("/api/positions", positionRouter);
 app.use("/api/shifts", shiftRouter);
 app.use("/api/leave-types", leaveTypeRouter);
+app.use("/api/leave-policies", leavePolicyRouter);
 
 // 404 Fallback
 app.use((req, res, next) => {

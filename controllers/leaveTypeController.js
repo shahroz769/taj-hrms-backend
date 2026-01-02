@@ -1,4 +1,5 @@
 import LeaveType from "../models/LeaveType.js";
+import LeavePolicy from "../models/LeavePolicy.js";
 import mongoose from "mongoose";
 import { ROLES } from "../utils/roles.js";
 
@@ -38,6 +39,23 @@ export const getAllLeaveTypes = async (req, res, next) => {
         limit,
       },
     });
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+};
+
+// @description     Get all leave types list for select options
+// @route           GET /api/leave-types/list
+// @access          Admin, Supervisor
+export const getAllLeaveTypesList = async (req, res, next) => {
+  try {
+    const leaveTypes = await LeaveType.find()
+      .sort({ name: 1 })
+      .collation({ locale: "en", strength: 2 })
+      .select("_id name");
+
+    res.json(leaveTypes);
   } catch (err) {
     console.log(err);
     next(err);
@@ -243,15 +261,19 @@ export const deleteLeaveType = async (req, res, next) => {
       throw new Error("Leave type not found");
     }
 
-    // TODO: Check if leave type is used in any leave requests when Leave model is implemented
-    // Uncomment and modify the code below when Leave model is ready:
-    // const leaveRequestCount = await Leave.countDocuments({ leaveType: id });
-    // if (leaveRequestCount > 0) {
-    //   res.status(400);
-    //   throw new Error(
-    //     `Cannot delete leave type with ${leaveRequestCount} associated leave request(s). Please remove or reassign leave requests first.`
-    //   );
-    // }
+    // Check if leave type is used in any leave policies
+    const leavePolicyCount = await LeavePolicy.countDocuments({
+      "entitlements.leaveType": id,
+    });
+
+    if (leavePolicyCount > 0) {
+      res.status(400);
+      throw new Error(
+        `Cannot delete leave type. It is currently used in ${leavePolicyCount} leave ${
+          leavePolicyCount === 1 ? "policy" : "policies"
+        }. Please remove it from all leave policies first.`
+      );
+    }
 
     await leaveType.deleteOne();
 

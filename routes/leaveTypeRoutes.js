@@ -3,6 +3,7 @@ import { protect } from "../middleware/authMiddleware.js";
 import {
   createLeaveType,
   getAllLeaveTypes,
+  getAllLeaveTypesList,
   updateLeaveType,
   updateLeaveTypeStatus,
   deleteLeaveType,
@@ -20,6 +21,16 @@ router.get(
   protect,
   authorize(ROLES.admin, ROLES.supervisor),
   getAllLeaveTypes
+);
+
+// @route           GET /api/leave-types/list
+// @description     Get all leave types list for select options
+// @access          Admin, Supervisor
+router.get(
+  "/list",
+  protect,
+  authorize(ROLES.admin, ROLES.supervisor),
+  getAllLeaveTypesList
 );
 
 // @route           POST /api/leave-types
