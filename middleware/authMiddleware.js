@@ -17,7 +17,7 @@ export const protect = async (req, res, next) => {
     const { payload } = await jwtVerify(token, JWT_SECRET);
 
     const user = await User.findById(payload.userId).select(
-      "_id role"
+      "_id role name"
     );
 
     if (!user) {

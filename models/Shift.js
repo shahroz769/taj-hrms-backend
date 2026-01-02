@@ -15,16 +15,18 @@ const shiftSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    intervals: [
-      {
-        startTime: String,
-        endTime: String,
-      },
-    ],
     workingDays: [
       {
         type: String,
-        enum: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+        enum: [
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday",
+          "Saturday",
+          "Sunday",
+        ],
         required: true,
       },
     ],
@@ -39,7 +41,7 @@ const shiftSchema = new mongoose.Schema(
     },
     createdBy: {
       type: String,
-      required: true,
+      default: "",
     },
     // createdBy: {
     //   type: mongoose.Schema.Types.ObjectId,

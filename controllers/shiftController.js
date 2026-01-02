@@ -1,5 +1,6 @@
 import Shift from "../models/Shift.js";
 import mongoose from "mongoose";
+import { ROLES } from "../utils/roles.js";
 
 // @description     Get all shifts
 // @route           GET /api/shifts
@@ -86,244 +87,256 @@ export const getAllShifts = async (req, res, next) => {
 //   }
 // };
 
-// @description     Create new position
-// @route           POST /api/positions
+// @description     Create new shift
+// @route           POST /api/shifts
 // @access          Admin
-// export const createPosition = async (req, res, next) => {
-//   try {
-//     const { name, reportsTo, employeeLimit, department } = req.body || {};
+export const createShift = async (req, res, next) => {
+  try {
+    const { name, startTime, endTime, workingDays, notes } = req.body || {};
 
-//     if (
-//       !name?.trim() ||
-//       !employeeLimit?.toString().trim() ||
-//       !reportsTo?.trim() ||
-//       !department?.trim()
-//     ) {
-//       res.status(400);
-//       throw new Error(
-//         "Position name, employee limit, reports to and department are required"
-//       );
-//     }
+    // Validate required fields
+    if (!name?.trim()) {
+      res.status(400);
+      throw new Error("Shift name is required");
+    }
 
-//     // Validate department ID
-//     if (!mongoose.Types.ObjectId.isValid(department)) {
-//       res.status(400);
-//       throw new Error("Invalid department ID");
-//     }
+    if (!startTime?.trim()) {
+      res.status(400);
+      throw new Error("Start time is required");
+    }
 
-//     // Check if department exists
-//     const departmentDoc = await Department.findById(department);
-//     if (!departmentDoc) {
-//       res.status(404);
-//       throw new Error("Department not found");
-//     }
+    if (!endTime?.trim()) {
+      res.status(400);
+      throw new Error("End time is required");
+    }
 
-//     // Check position count limit for the department
-//     const positionCountLimit = departmentDoc.positionCount
-//       ?.trim()
-//       .toLowerCase();
+    if (!workingDays || !Array.isArray(workingDays) || workingDays.length === 0) {
+      res.status(400);
+      throw new Error("At least one working day is required");
+    }
 
-//     if (positionCountLimit && positionCountLimit !== "unlimited") {
-//       // Count current positions in this department
-//       const currentPositionCount = await Position.countDocuments({
-//         department: department,
-//       });
+    const validDays = [
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+      "Sunday",
+    ];
 
-//       // Parse the limit as a number
-//       const limit = parseInt(positionCountLimit, 10);
+    const invalidDays = workingDays.filter((day) => !validDays.includes(day));
+    if (invalidDays.length > 0) {
+      res.status(400);
+      throw new Error(
+        `Invalid working day(s): ${invalidDays.join(", ")}. Valid days are: ${validDays.join(", ")}`
+      );
+    }
 
-//       if (isNaN(limit)) {
-//         res.status(400);
-//         throw new Error("Invalid position count limit in department");
-//       }
+    // Check if shift with same name already exists
+    const existingShift = await Shift.findOne({
+      name: { $regex: new RegExp(`^${name.trim()}$`, "i") },
+    });
 
-//       // Check if limit is reached
-//       if (currentPositionCount >= limit) {
-//         res.status(400);
-//         throw new Error(
-//           `Position limit reached for ${departmentDoc.name} department. Maximum positions allowed: ${limit}`
-//         );
-//       }
-//     }
+    if (existingShift) {
+      res.status(400);
+      throw new Error("Shift with this name already exists");
+    }
 
-//     // Check if position already exists in this department
-//     const existingPosition = await Position.findOne({
-//       name: { $regex: new RegExp(`^${name.trim()}$`, "i") },
-//       department: department,
-//     });
+    // Check if user is admin
+    const isAdmin = req.user.role === ROLES.admin;
 
-//     if (existingPosition) {
-//       res.status(400);
-//       throw new Error(
-//         "Position with this name already exists in this department"
-//       );
-//     }
+    const newShift = new Shift({
+      name: name.trim(),
+      startTime: startTime.trim(),
+      endTime: endTime.trim(),
+      workingDays: workingDays,
+      notes: notes?.trim() || "",
+      status: isAdmin ? "Approved" : "Pending",
+      createdBy: isAdmin ? req.user.name : req.user._id,
+    });
 
-//     const newPosition = new Position({
-//       name: name.trim(),
-//       department: department,
-//       reportsTo: reportsTo,
-//       employeeLimit: employeeLimit,
-//       createdBy: req.user._id,
-//     });
+    const savedShift = await newShift.save();
 
-//     const savedPosition = await newPosition.save();
+    res.status(201).json(savedShift);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+};
 
-//     res.status(201).json(savedPosition);
-//   } catch (err) {
-//     console.log(err);
-//     next(err);
-//   }
-// };
-
-// @description     Update position
-// @route           PUT /api/positions/:id
+// @description     Update shift
+// @route           PUT /api/shifts/:id
 // @access          Admin
-// export const updatePosition = async (req, res, next) => {
-//   try {
-//     const { id } = req.params;
+export const updateShift = async (req, res, next) => {
+  try {
+    const { id } = req.params;
 
-//     if (!mongoose.Types.ObjectId.isValid(id)) {
-//       res.status(404);
-//       throw new Error("Position Not Found");
-//     }
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(404);
+      throw new Error("Shift Not Found");
+    }
 
-//     const position = await Position.findById(id);
+    const shift = await Shift.findById(id);
 
-//     if (!position) {
-//       res.status(404);
-//       throw new Error("Position not found");
-//     }
+    if (!shift) {
+      res.status(404);
+      throw new Error("Shift not found");
+    }
 
-//     const { name, reportsTo, employeeLimit, department } = req.body || {};
+    const { name, startTime, endTime, workingDays, notes } = req.body || {};
 
-//     if (
-//       !name?.trim() ||
-//       !employeeLimit?.toString().trim() ||
-//       !reportsTo?.trim() ||
-//       !department?.trim()
-//     ) {
-//       res.status(400);
-//       throw new Error(
-//         "Position name, employee limit, reports to and department are required"
-//       );
-//     }
+    // Validate required fields
+    if (!name?.trim()) {
+      res.status(400);
+      throw new Error("Shift name is required");
+    }
 
-//     // Validate department ID
-//     if (!mongoose.Types.ObjectId.isValid(department)) {
-//       res.status(400);
-//       throw new Error("Invalid department ID");
-//     }
+    if (!startTime?.trim()) {
+      res.status(400);
+      throw new Error("Start time is required");
+    }
 
-//     // Check if department exists
-//     const departmentDoc = await Department.findById(department);
-//     if (!departmentDoc) {
-//       res.status(404);
-//       throw new Error("Department not found");
-//     }
+    if (!endTime?.trim()) {
+      res.status(400);
+      throw new Error("End time is required");
+    }
 
-//     // If department is being changed, check position limit for new department
-//     if (department !== position.department.toString()) {
-//       const positionCountLimit = departmentDoc.positionCount
-//         ?.trim()
-//         .toLowerCase();
+    if (!workingDays || !Array.isArray(workingDays) || workingDays.length === 0) {
+      res.status(400);
+      throw new Error("At least one working day is required");
+    }
 
-//       if (positionCountLimit && positionCountLimit !== "unlimited") {
-//         // Count current positions in the new department
-//         const currentPositionCount = await Position.countDocuments({
-//           department: department,
-//         });
+    const validDays = [
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+      "Sunday",
+    ];
 
-//         // Parse the limit as a number
-//         const limit = parseInt(positionCountLimit, 10);
+    const invalidDays = workingDays.filter((day) => !validDays.includes(day));
+    if (invalidDays.length > 0) {
+      res.status(400);
+      throw new Error(
+        `Invalid working day(s): ${invalidDays.join(", ")}. Valid days are: ${validDays.join(", ")}`
+      );
+    }
 
-//         if (isNaN(limit)) {
-//           res.status(400);
-//           throw new Error("Invalid position count limit in department");
-//         }
+    // Check if new name conflicts with existing shift
+    if (name.trim() !== shift.name) {
+      const existingShift = await Shift.findOne({
+        name: { $regex: new RegExp(`^${name.trim()}$`, "i") },
+        _id: { $ne: id },
+      });
 
-//         // Check if limit is reached
-//         if (currentPositionCount >= limit) {
-//           res.status(400);
-//           throw new Error(
-//             `Position limit reached for ${departmentDoc.name} department. Maximum positions allowed: ${limit}`
-//           );
-//         }
-//       }
-//     }
+      if (existingShift) {
+        res.status(400);
+        throw new Error("Shift with this name already exists");
+      }
+    }
 
-//     // Check if new name conflicts with existing position in the target department
-//     if (
-//       name.trim() !== position.name ||
-//       department !== position.department.toString()
-//     ) {
-//       const existingPosition = await Position.findOne({
-//         name: { $regex: new RegExp(`^${name.trim()}$`, "i") },
-//         department: department,
-//         _id: { $ne: id },
-//       });
+    // Update shift fields
+    shift.name = name.trim();
+    shift.startTime = startTime.trim();
+    shift.endTime = endTime.trim();
+    shift.workingDays = workingDays;
+    shift.notes = notes?.trim() || "";
 
-//       if (existingPosition) {
-//         res.status(400);
-//         throw new Error(
-//           "Position with this name already exists in this department"
-//         );
-//       }
-//     }
+    const updatedShift = await shift.save();
 
-//     // Update position fields
-//     position.name = name.trim();
-//     position.department = department;
-//     position.reportsTo = reportsTo;
-//     position.employeeLimit = employeeLimit;
+    res.json(updatedShift);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+};
 
-//     const updatedPosition = await position.save();
-
-//     res.json(updatedPosition);
-//   } catch (err) {
-//     console.log(err);
-//     next(err);
-//   }
-// };
-
-// @description     Delete position
-// @route           DELETE /api/positions/:id
+// @description     Update shift status (Approve/Reject)
+// @route           PATCH /api/shifts/:id/status
 // @access          Admin
-// export const deletePosition = async (req, res, next) => {
-//   try {
-//     const { id } = req.params;
+export const updateShiftStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
 
-//     if (!mongoose.Types.ObjectId.isValid(id)) {
-//       res.status(404);
-//       throw new Error("Position Not Found");
-//     }
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(404);
+      throw new Error("Shift Not Found");
+    }
 
-//     const position = await Position.findById(id);
+    const shift = await Shift.findById(id);
 
-//     if (!position) {
-//       res.status(404);
-//       throw new Error("Position not found");
-//     }
+    if (!shift) {
+      res.status(404);
+      throw new Error("Shift not found");
+    }
 
-//     // Check if position has employees
-//     if (position.hiredEmployees > 0) {
-//       res.status(400);
-//       throw new Error(
-//         "Cannot delete position with active employees. Please reassign employees first."
-//       );
-//     }
+    // Validate status
+    const validStatuses = ["Approved", "Pending", "Rejected"];
+    if (!status || !validStatuses.includes(status)) {
+      res.status(400);
+      throw new Error(
+        `Invalid status. Valid statuses are: ${validStatuses.join(", ")}`
+      );
+    }
 
-//     await position.deleteOne();
+    // Update shift status
+    shift.status = status;
+    const updatedShift = await shift.save();
 
-//     res.json({
-//       message: "Position deleted successfully",
-//       deletedPosition: {
-//         id: position._id,
-//         name: position.name,
-//       },
-//     });
-//   } catch (err) {
-//     console.log(err);
-//     next(err);
-//   }
-// };
+    res.json({
+      message: `Shift ${status.toLowerCase()} successfully`,
+      shift: updatedShift,
+    });
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+};
+
+// @description     Delete shift
+// @route           DELETE /api/shifts/:id
+// @access          Admin
+export const deleteShift = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(404);
+      throw new Error("Shift Not Found");
+    }
+
+    const shift = await Shift.findById(id);
+
+    if (!shift) {
+      res.status(404);
+      throw new Error("Shift not found");
+    }
+
+    // TODO: Check if shift is assigned to any employees when Employee model is implemented
+    // Uncomment and modify the code below when Employee model is ready:
+    // const employeeCount = await Employee.countDocuments({ shift: id });
+    // if (employeeCount > 0) {
+    //   res.status(400);
+    //   throw new Error(
+    //     `Cannot delete shift with ${employeeCount} active employee(s). Please reassign employees first.`
+    //   );
+    // }
+
+    await shift.deleteOne();
+
+    res.json({
+      message: "Shift deleted successfully",
+      deletedShift: {
+        id: shift._id,
+        name: shift.name,
+      },
+    });
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+};
