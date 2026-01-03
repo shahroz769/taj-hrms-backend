@@ -39,6 +39,7 @@ export const getAllPositions = async (req, res, next) => {
 
     // Get paginated positions
     const positions = await Position.find(query)
+      .populate("leavePolicy", "name")
       .populate("department", "name")
       .populate("reportsTo", "name")
       .sort({ createdAt: -1 })
@@ -67,7 +68,8 @@ export const getAllPositionsFiltersList = async (req, res, next) => {
   try {
     const positionsFiltersList = await Position.find()
       .populate("department", "name")
-      .select("name reportsTo department");
+      .populate("leavePolicy", "name")
+      .select("name reportsTo department leavePolicy");
     res.json({
       positionsFiltersList,
     });
@@ -108,17 +110,19 @@ export const getPositionById = async (req, res, next) => {
 // @access          Admin
 export const createPosition = async (req, res, next) => {
   try {
-    const { name, reportsTo, employeeLimit, department } = req.body || {};
+    const { name, reportsTo, employeeLimit, department, leavePolicy } =
+      req.body || {};
 
     if (
       !name?.trim() ||
       !employeeLimit?.toString().trim() ||
       !reportsTo?.trim() ||
-      !department?.trim()
+      !department?.trim() ||
+      !leavePolicy?.trim()
     ) {
       res.status(400);
       throw new Error(
-        "Position name, employee limit, reports to and department are required"
+        "Position name, employee limit, reports to, department and leave policy are required"
       );
     }
 
@@ -126,6 +130,12 @@ export const createPosition = async (req, res, next) => {
     if (!mongoose.Types.ObjectId.isValid(department)) {
       res.status(400);
       throw new Error("Invalid department ID");
+    }
+
+    // Validate leave policy ID
+    if (!mongoose.Types.ObjectId.isValid(leavePolicy)) {
+      res.status(400);
+      throw new Error("Invalid leave policy ID");
     }
 
     // Check if department exists
@@ -180,6 +190,7 @@ export const createPosition = async (req, res, next) => {
       name: name.trim(),
       department: department,
       reportsTo: reportsTo,
+      leavePolicy: leavePolicy,
       employeeLimit: employeeLimit,
       createdBy: req.user._id,
     });
@@ -212,17 +223,19 @@ export const updatePosition = async (req, res, next) => {
       throw new Error("Position not found");
     }
 
-    const { name, reportsTo, employeeLimit, department } = req.body || {};
+    const { name, reportsTo, employeeLimit, department, leavePolicy } =
+      req.body || {};
 
     if (
       !name?.trim() ||
       !employeeLimit?.toString().trim() ||
       !reportsTo?.trim() ||
-      !department?.trim()
+      !department?.trim() ||
+      !leavePolicy?.trim()
     ) {
       res.status(400);
       throw new Error(
-        "Position name, employee limit, reports to and department are required"
+        "Position name, employee limit, reports to, department and leave policy are required"
       );
     }
 
@@ -230,6 +243,12 @@ export const updatePosition = async (req, res, next) => {
     if (!mongoose.Types.ObjectId.isValid(department)) {
       res.status(400);
       throw new Error("Invalid department ID");
+    }
+
+    // Validate leave policy ID
+    if (!mongoose.Types.ObjectId.isValid(leavePolicy)) {
+      res.status(400);
+      throw new Error("Invalid leave policy ID");
     }
 
     // Check if department exists
@@ -292,6 +311,7 @@ export const updatePosition = async (req, res, next) => {
     position.name = name.trim();
     position.department = department;
     position.reportsTo = reportsTo;
+    position.leavePolicy = leavePolicy;
     position.employeeLimit = employeeLimit;
 
     const updatedPosition = await position.save();

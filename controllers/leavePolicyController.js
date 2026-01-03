@@ -1,4 +1,5 @@
 import LeavePolicy from "../models/LeavePolicy.js";
+import Position from "../models/Position.js";
 import mongoose from "mongoose";
 import { ROLES } from "../utils/roles.js";
 
@@ -299,15 +300,14 @@ export const deleteLeavePolicy = async (req, res, next) => {
       throw new Error("Leave policy not found");
     }
 
-    // TODO: Check if leave policy is assigned to any employees when Employee model is implemented
-    // Uncomment and modify the code below when Employee model is ready:
-    // const employeeCount = await Employee.countDocuments({ leavePolicy: id });
-    // if (employeeCount > 0) {
-    //   res.status(400);
-    //   throw new Error(
-    //     `Cannot delete leave policy with ${employeeCount} assigned employee(s). Please reassign employees first.`
-    //   );
-    // }
+    // Check if leave policy is assigned to any positions
+    const positionCount = await Position.countDocuments({ leavePolicy: id });
+    if (positionCount > 0) {
+      res.status(400);
+      throw new Error(
+        `Cannot delete leave policy assigned to ${positionCount} position(s). Please reassign positions first.`
+      );
+    }
 
     await leavePolicy.deleteOne();
 
