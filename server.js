@@ -9,6 +9,7 @@ import shiftRouter from "./routes/shiftRoutes.js";
 import leaveTypeRouter from "./routes/leaveTypeRoutes.js";
 import leavePolicyRouter from "./routes/leavePolicyRoutes.js";
 import salaryComponentRouter from "./routes/salaryComponentRoutes.js";
+import salaryPolicyRouter from "./routes/salaryPolicyRoutes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import connectDB from "./config/db.js";
 import chalk from "chalk";
@@ -49,6 +50,7 @@ app.use("/api/shifts", shiftRouter);
 app.use("/api/leave-types", leaveTypeRouter);
 app.use("/api/leave-policies", leavePolicyRouter);
 app.use("/api/salary-components", salaryComponentRouter);
+app.use("/api/salary-policies", salaryPolicyRouter);
 
 // 404 Fallback
 app.use((req, res, next) => {

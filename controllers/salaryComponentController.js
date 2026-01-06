@@ -1,5 +1,5 @@
 import SalaryComponent from "../models/SalaryComponent.js";
-// import SalaryPolicy from "../models/SalaryPolicy.js";
+import SalaryPolicy from "../models/SalaryPolicy.js";
 import mongoose from "mongoose";
 import { ROLES } from "../utils/roles.js";
 
@@ -241,20 +241,19 @@ export const deleteSalaryComponent = async (req, res, next) => {
       throw new Error("Salary component not found");
     }
 
-    // TODO: Uncomment when SalaryPolicy model is ready
     // Check if salary component is used in any salary policies
-    // const salaryPolicyCount = await SalaryPolicy.countDocuments({
-    //   "components.salaryComponent": id,
-    // });
+    const salaryPolicyCount = await SalaryPolicy.countDocuments({
+      "components.salaryComponent": id,
+    });
 
-    // if (salaryPolicyCount > 0) {
-    //   res.status(400);
-    //   throw new Error(
-    //     `Cannot delete salary component. It is currently used in ${salaryPolicyCount} salary ${
-    //       salaryPolicyCount === 1 ? "policy" : "policies"
-    //     }. Please remove it from all salary policies first.`
-    //   );
-    // }
+    if (salaryPolicyCount > 0) {
+      res.status(400);
+      throw new Error(
+        `Cannot delete salary component. It is currently used in ${salaryPolicyCount} salary ${
+          salaryPolicyCount === 1 ? "policy" : "policies"
+        }. Please remove it from all salary policies first.`
+      );
+    }
 
     await salaryComponent.deleteOne();
 
