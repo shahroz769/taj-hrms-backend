@@ -37,10 +37,10 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // Routes
-// app.use("/api/ideas", ideaRouter);
 app.get("/", (req, res) => {
   res.send(`Server is running on port ${PORT}`);
 });
+
 app.use("/api/auth", authRouter);
 app.use("/api/departments", departmentRouter);
 app.use("/api/positions", positionRouter);
