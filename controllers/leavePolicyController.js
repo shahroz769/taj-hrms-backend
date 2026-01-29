@@ -2,6 +2,8 @@ import LeavePolicy from "../models/LeavePolicy.js";
 import Position from "../models/Position.js";
 import mongoose from "mongoose";
 import { ROLES } from "../utils/roles.js";
+import Employee from "../models/Employee.js";
+import LeaveBalance from "../models/LeaveBalance.js";
 
 // @description     Get all leave policies
 // @route           GET /api/leave-policies
@@ -77,7 +79,7 @@ export const getLeavePolicyById = async (req, res, next) => {
 
     const leavePolicy = await LeavePolicy.findById(id).populate(
       "entitlements.leaveType",
-      "name"
+      "name",
     );
 
     if (!leavePolicy) {
@@ -225,6 +227,51 @@ export const updateLeavePolicy = async (req, res, next) => {
 
     const updatedLeavePolicy = await leavePolicy.save();
 
+    // --- Propagate changes to Leave Balances ---
+    const currentYear = new Date().getFullYear();
+
+    // Find all positions using this policy
+    const positions = await Position.find({ leavePolicy: id }).select("_id");
+    const positionIds = positions.map((p) => p._id);
+
+    // Find all active employees in these positions
+    const employees = await Employee.find({
+      position: { $in: positionIds },
+      status: "Active",
+    }).select("_id");
+
+    // Update or create leave balances for each employee
+    for (const employee of employees) {
+      for (const entitlement of updatedLeavePolicy.entitlements) {
+        // use findOneAndUpdate with upsert to handle both cases efficiently
+        // We need to calculate remainingDays based on existing usedDays if record exists
+
+        const existingBalance = await LeaveBalance.findOne({
+          employee: employee._id,
+          leaveType: entitlement.leaveType,
+          year: currentYear,
+        });
+
+        if (existingBalance) {
+          existingBalance.totalDays = entitlement.days;
+          existingBalance.remainingDays = Math.max(
+            0,
+            existingBalance.totalDays - existingBalance.usedDays,
+          );
+          await existingBalance.save();
+        } else {
+          await LeaveBalance.create({
+            employee: employee._id,
+            leaveType: entitlement.leaveType,
+            totalDays: entitlement.days,
+            usedDays: 0,
+            remainingDays: entitlement.days,
+            year: currentYear,
+          });
+        }
+      }
+    }
+
     // Populate the leave types in the response
     await updatedLeavePolicy.populate("entitlements.leaveType", "name");
 
@@ -250,7 +297,7 @@ export const updateLeavePolicyStatus = async (req, res, next) => {
 
     const leavePolicy = await LeavePolicy.findById(id).populate(
       "entitlements.leaveType",
-      "name"
+      "name",
     );
 
     if (!leavePolicy) {
@@ -263,7 +310,7 @@ export const updateLeavePolicyStatus = async (req, res, next) => {
     if (!status || !validStatuses.includes(status)) {
       res.status(400);
       throw new Error(
-        `Invalid status. Valid statuses are: ${validStatuses.join(", ")}`
+        `Invalid status. Valid statuses are: ${validStatuses.join(", ")}`,
       );
     }
 
@@ -305,7 +352,7 @@ export const deleteLeavePolicy = async (req, res, next) => {
     if (positionCount > 0) {
       res.status(400);
       throw new Error(
-        `Cannot delete leave policy assigned to ${positionCount} position(s). Please reassign positions first.`
+        `Cannot delete leave policy assigned to ${positionCount} position(s). Please reassign positions first.`,
       );
     }
 

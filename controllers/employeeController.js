@@ -24,7 +24,7 @@ const generateEmployeeId = async () => {
   return `TAJ-${newNumber}`;
 };
 
-// Helper function to create leave balances for an employee
+// Helper function to create or update leave balances for an employee
 const createLeaveBalances = async (employeeId, positionId) => {
   const position = await Position.findById(positionId).populate({
     path: "leavePolicy",
@@ -42,18 +42,33 @@ const createLeaveBalances = async (employeeId, positionId) => {
   const leaveBalances = [];
 
   for (const entitlement of position.leavePolicy.entitlements) {
-    const leaveBalance = new LeaveBalance({
+    const existingBalance = await LeaveBalance.findOne({
       employee: employeeId,
       leaveType: entitlement.leaveType._id,
-      totalDays: entitlement.days,
-      usedDays: 0,
-      remainingDays: entitlement.days,
       year: currentYear,
     });
-    leaveBalances.push(leaveBalance);
+
+    if (existingBalance) {
+      existingBalance.totalDays = entitlement.days;
+      existingBalance.remainingDays = Math.max(
+        0,
+        existingBalance.totalDays - existingBalance.usedDays,
+      );
+      await existingBalance.save();
+      leaveBalances.push(existingBalance);
+    } else {
+      const newBalance = await LeaveBalance.create({
+        employee: employeeId,
+        leaveType: entitlement.leaveType._id,
+        totalDays: entitlement.days,
+        usedDays: 0,
+        remainingDays: entitlement.days,
+        year: currentYear,
+      });
+      leaveBalances.push(newBalance);
+    }
   }
 
-  await LeaveBalance.insertMany(leaveBalances);
   return leaveBalances;
 };
 
