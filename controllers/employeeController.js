@@ -276,9 +276,11 @@ export const getAllEmployees = async (req, res, next) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const searchText = req.query.search || "";
-    // const statusFilter = req.query.status || "";
-    // const positionFilter = req.query.position || "";
-    // const departmentFilter = req.query.department || "";
+    const statusFilter = req.query.status || "";
+    const typeFilter = req.query.type || "";
+    const positionFilter = req.query.position || ""; // Position Name
+    const departmentFilter = req.query.department || ""; // Department ID
+    const shiftFilter = req.query.shift || ""; // Shift ID
 
     // Build search and filter query
     const query = {};
@@ -293,14 +295,53 @@ export const getAllEmployees = async (req, res, next) => {
     }
 
     // Filter by status
-    // if (statusFilter.trim()) {
-    //   query.status = statusFilter.trim();
-    // }
+    if (statusFilter.trim()) {
+      query.status = statusFilter.trim();
+    }
 
-    // Filter by position
-    // if (positionFilter.trim()) {
-    //   query.position = positionFilter.trim();
-    // }
+    // Filter by employment type
+    if (typeFilter.trim()) {
+      query.employmentType = typeFilter.trim();
+    }
+
+    // Filter by Department and/or Position Name
+    const positionQuery = {};
+    if (departmentFilter.trim()) {
+      positionQuery.department = departmentFilter.trim();
+    }
+    if (positionFilter.trim()) {
+      // Exact match for name if selected from dropdown, or regex if manual
+      // Assuming dropdown sends exact name
+      positionQuery.name = positionFilter.trim();
+    }
+
+    if (Object.keys(positionQuery).length > 0) {
+      const validPositionIds =
+        await Position.find(positionQuery).distinct("_id");
+      // If we are filtering by position/dept but found no matching positions,
+      // we should ensure the query returns no employees.
+      if (validPositionIds.length === 0) {
+        // Impossible ID to ensure no results
+        query.position = new mongoose.Types.ObjectId();
+      } else {
+        query.position = { $in: validPositionIds };
+      }
+    }
+
+    // Filter by Shift
+    if (shiftFilter.trim()) {
+      const shiftEmployeeIds = await EmployeeShift.find({
+        shift: shiftFilter.trim(),
+        endDate: null,
+      }).distinct("employee");
+
+      // Merge with existing _id filter if any (unlikely in this context so far)
+      if (query._id) {
+        query._id = { $in: shiftEmployeeIds, ...query._id };
+      } else {
+        query._id = { $in: shiftEmployeeIds };
+      }
+    }
 
     // Calculate skip value for pagination
     const skip = limit > 0 ? (page - 1) * limit : 0;
@@ -340,7 +381,10 @@ export const getAllEmployees = async (req, res, next) => {
     // Create a map for quick lookup
     const shiftMap = new Map();
     for (const cs of currentShifts) {
-      shiftMap.set(cs.employee.toString(), cs.shift);
+      shiftMap.set(cs.employee.toString(), {
+        ...cs.shift,
+        effectiveDate: cs.effectiveDate,
+      });
     }
 
     // Attach current shift to each employee
@@ -348,14 +392,6 @@ export const getAllEmployees = async (req, res, next) => {
       ...emp,
       currentShift: shiftMap.get(emp._id.toString()) || null,
     }));
-
-    // Apply department filter after population (if specified)
-    // if (departmentFilter.trim()) {
-    //   employees = employees.filter(
-    //     (emp) =>
-    //       emp.position?.department?._id?.toString() === departmentFilter.trim()
-    //   );
-    // }
 
     res.json({
       employees,
