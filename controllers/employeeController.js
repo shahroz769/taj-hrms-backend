@@ -1,5 +1,6 @@
 import Employee from "../models/Employee.js";
 import Position from "../models/Position.js";
+import Department from "../models/Department.js";
 import LeavePolicy from "../models/LeavePolicy.js";
 import SalaryPolicy from "../models/SalaryPolicy.js";
 import LeaveBalance from "../models/LeaveBalance.js";
@@ -235,6 +236,11 @@ export const createEmployee = async (req, res, next) => {
 
     // Increment hired employees count in position
     await Position.findByIdAndUpdate(position, { $inc: { hiredEmployees: 1 } });
+
+    // Increment employee count in department
+    await Department.findByIdAndUpdate(positionDoc.department, {
+      $inc: { employeeCount: 1 },
+    });
 
     // Create leave balances based on position's leave policy
     let leaveBalances = [];
@@ -512,6 +518,9 @@ export const updateEmployee = async (req, res, next) => {
       previousExperience,
       guarantor,
       legal,
+      position,
+      salaryPolicy,
+      employmentType,
     } = req.body;
 
     // Check for duplicate CNIC if changed
@@ -559,7 +568,242 @@ export const updateEmployee = async (req, res, next) => {
       return value;
     };
 
-    // Update fields
+    // Track changes for response
+    let positionChanged = false;
+    let salaryPolicyChanged = false;
+    let leaveBalanceChanges = [];
+
+    // Handle position change
+    if (position && position !== employee.position?.toString()) {
+      if (!mongoose.Types.ObjectId.isValid(position)) {
+        res.status(400);
+        throw new Error("Invalid position ID");
+      }
+
+      // Get old position with leave policy
+      const oldPositionDoc = await Position.findById(
+        employee.position,
+      ).populate({
+        path: "leavePolicy",
+        populate: {
+          path: "entitlements.leaveType",
+          select: "_id name",
+        },
+      });
+
+      // Get new position with leave policy
+      const newPositionDoc = await Position.findById(position).populate({
+        path: "leavePolicy",
+        populate: {
+          path: "entitlements.leaveType",
+          select: "_id name",
+        },
+      });
+
+      if (!newPositionDoc) {
+        res.status(404);
+        throw new Error("Position not found");
+      }
+
+      // Check employee limit for new position
+      const employeeLimitStr = newPositionDoc.employeeLimit
+        ?.trim()
+        .toLowerCase();
+      if (employeeLimitStr && employeeLimitStr !== "unlimited") {
+        const limit = parseInt(employeeLimitStr, 10);
+        if (!isNaN(limit) && newPositionDoc.hiredEmployees >= limit) {
+          res.status(400);
+          throw new Error(
+            `Employee limit reached for ${newPositionDoc.name} position. Maximum employees allowed: ${limit}`,
+          );
+        }
+      }
+
+      const fromPosition = employee.position;
+      const effectiveDate = new Date();
+      const currentYear = effectiveDate.getFullYear();
+
+      // Create position history record
+      await PositionHistory.create({
+        employee: id,
+        fromPosition,
+        toPosition: position,
+        changedBy: req.user._id,
+        effectiveDate,
+        reason: "Updated via employee edit form",
+      });
+
+      // Decrement count from old position
+      await Position.findByIdAndUpdate(fromPosition, {
+        $inc: { hiredEmployees: -1 },
+      });
+      // Increment count for new position
+      await Position.findByIdAndUpdate(position, {
+        $inc: { hiredEmployees: 1 },
+      });
+
+      // Handle department employee count if department changes
+      const oldDepartmentId = oldPositionDoc?.department?.toString();
+      const newDepartmentId = newPositionDoc.department?.toString();
+
+      if (oldDepartmentId !== newDepartmentId) {
+        // Decrement count from old department
+        await Department.findByIdAndUpdate(oldDepartmentId, {
+          $inc: { employeeCount: -1 },
+        });
+        // Increment count for new department
+        await Department.findByIdAndUpdate(newDepartmentId, {
+          $inc: { employeeCount: 1 },
+        });
+      }
+
+      // Handle leave balance adjustments if leave policy changes
+      const oldLeavePolicyId = oldPositionDoc?.leavePolicy?._id?.toString();
+      const newLeavePolicyId = newPositionDoc?.leavePolicy?._id?.toString();
+
+      if (oldLeavePolicyId !== newLeavePolicyId && newPositionDoc.leavePolicy) {
+        // Calculate remaining days in the year from effective date
+        const startOfYear = new Date(currentYear, 0, 1);
+        const endOfYear = new Date(currentYear, 11, 31);
+        const totalDaysInYear =
+          Math.ceil((endOfYear - startOfYear) / (1000 * 60 * 60 * 24)) + 1;
+        const daysRemainingInYear =
+          Math.ceil((endOfYear - effectiveDate) / (1000 * 60 * 60 * 24)) + 1;
+        const prorationFactor = daysRemainingInYear / totalDaysInYear;
+
+        // Get current leave balances for this employee and year
+        const currentBalances = await LeaveBalance.find({
+          employee: id,
+          year: currentYear,
+        });
+
+        const currentBalancesMap = new Map();
+        for (const balance of currentBalances) {
+          currentBalancesMap.set(balance.leaveType.toString(), balance);
+        }
+
+        // Process new leave policy entitlements
+        for (const entitlement of newPositionDoc.leavePolicy.entitlements) {
+          const leaveTypeId = entitlement.leaveType._id.toString();
+          const existingBalance = currentBalancesMap.get(leaveTypeId);
+
+          if (existingBalance) {
+            // Leave type exists in both policies
+            const oldEntitlement =
+              oldPositionDoc?.leavePolicy?.entitlements?.find(
+                (e) => e.leaveType._id.toString() === leaveTypeId,
+              );
+            const oldTotalDays = oldEntitlement?.days || 0;
+            const newTotalDays = entitlement.days;
+
+            if (newTotalDays > oldTotalDays) {
+              // More leaves in new policy - add prorated difference to remaining
+              const additionalDays = Math.round(
+                (newTotalDays - oldTotalDays) * prorationFactor,
+              );
+              existingBalance.totalDays = oldTotalDays + additionalDays;
+              existingBalance.remainingDays = Math.max(
+                0,
+                existingBalance.totalDays - existingBalance.usedDays,
+              );
+              await existingBalance.save();
+              leaveBalanceChanges.push({
+                leaveType: entitlement.leaveType.name,
+                action: "increased",
+                oldTotal: oldTotalDays,
+                newTotal: existingBalance.totalDays,
+                additionalDays,
+              });
+            } else if (newTotalDays < oldTotalDays) {
+              // Fewer leaves in new policy - reduce total but don't affect used days
+              const newProratedTotal =
+                Math.round(newTotalDays * prorationFactor) +
+                existingBalance.usedDays;
+              existingBalance.totalDays = Math.max(
+                existingBalance.usedDays,
+                newProratedTotal,
+              );
+              existingBalance.remainingDays = Math.max(
+                0,
+                existingBalance.totalDays - existingBalance.usedDays,
+              );
+              await existingBalance.save();
+              leaveBalanceChanges.push({
+                leaveType: entitlement.leaveType.name,
+                action: "adjusted",
+                oldTotal: oldTotalDays,
+                newTotal: existingBalance.totalDays,
+              });
+            }
+            // Remove from map to track processed leave types
+            currentBalancesMap.delete(leaveTypeId);
+          } else {
+            // New leave type - create prorated balance
+            const proratedDays = Math.round(entitlement.days * prorationFactor);
+            await LeaveBalance.create({
+              employee: id,
+              leaveType: entitlement.leaveType._id,
+              totalDays: proratedDays,
+              usedDays: 0,
+              remainingDays: proratedDays,
+              year: currentYear,
+            });
+            leaveBalanceChanges.push({
+              leaveType: entitlement.leaveType.name,
+              action: "created",
+              totalDays: proratedDays,
+              note: `Prorated for ${daysRemainingInYear} remaining days in year`,
+            });
+          }
+        }
+      }
+
+      employee.position = position;
+      positionChanged = true;
+    }
+
+    // Handle salary policy change
+    if (salaryPolicy && salaryPolicy !== employee.salaryPolicy?.toString()) {
+      if (!mongoose.Types.ObjectId.isValid(salaryPolicy)) {
+        res.status(400);
+        throw new Error("Invalid salary policy ID");
+      }
+
+      const newSalaryPolicyDoc = await SalaryPolicy.findById(salaryPolicy);
+      if (!newSalaryPolicyDoc) {
+        res.status(404);
+        throw new Error("Salary policy not found");
+      }
+
+      const fromSalaryPolicy = employee.salaryPolicy;
+
+      // Create salary policy history record
+      await SalaryPolicyHistory.create({
+        employee: id,
+        fromSalaryPolicy,
+        toSalaryPolicy: salaryPolicy,
+        changedBy: req.user._id,
+        effectiveDate: new Date(),
+        reason: "Updated via employee edit form",
+      });
+
+      employee.salaryPolicy = salaryPolicy;
+      salaryPolicyChanged = true;
+    }
+
+    // Handle employment type change
+    if (employmentType && employmentType !== employee.employmentType) {
+      const validTypes = ["Permanent", "Contract", "Part Time"];
+      if (!validTypes.includes(employmentType)) {
+        res.status(400);
+        throw new Error(
+          `Invalid employment type. Must be one of: ${validTypes.join(", ")}`,
+        );
+      }
+      employee.employmentType = employmentType;
+    }
+
+    // Update other fields
     if (fullName?.trim()) employee.fullName = fullName.trim();
     if (gender) employee.gender = gender;
     if (fatherName !== undefined)
@@ -592,10 +836,22 @@ export const updateEmployee = async (req, res, next) => {
     const updatedEmployee = await employee.save();
 
     const populatedEmployee = await Employee.findById(updatedEmployee._id)
-      .populate("position", "name department")
+      .populate({
+        path: "position",
+        select: "name department",
+        populate: {
+          path: "department",
+          select: "name",
+        },
+      })
       .populate("salaryPolicy", "name");
 
-    res.json(populatedEmployee);
+    res.json({
+      employee: populatedEmployee,
+      positionChanged,
+      salaryPolicyChanged,
+      leaveBalanceChanges,
+    });
   } catch (err) {
     console.log(err);
     next(err);
@@ -623,7 +879,10 @@ export const changeEmployeeStatus = async (req, res, next) => {
       );
     }
 
-    const employee = await Employee.findById(id);
+    const employee = await Employee.findById(id).populate(
+      "position",
+      "department",
+    );
 
     if (!employee) {
       res.status(404);
@@ -635,14 +894,22 @@ export const changeEmployeeStatus = async (req, res, next) => {
 
     // If employee is being deactivated, decrement hired count
     if (previousStatus === "Active" && status !== "Active") {
-      await Position.findByIdAndUpdate(employee.position, {
+      await Position.findByIdAndUpdate(employee.position._id, {
         $inc: { hiredEmployees: -1 },
+      });
+      // Also decrement department employee count
+      await Department.findByIdAndUpdate(employee.position.department, {
+        $inc: { employeeCount: -1 },
       });
     }
     // If employee is being reactivated, increment hired count
     else if (previousStatus !== "Active" && status === "Active") {
-      await Position.findByIdAndUpdate(employee.position, {
+      await Position.findByIdAndUpdate(employee.position._id, {
         $inc: { hiredEmployees: 1 },
+      });
+      // Also increment department employee count
+      await Department.findByIdAndUpdate(employee.position.department, {
+        $inc: { employeeCount: 1 },
       });
     }
 
@@ -746,6 +1013,21 @@ export const changeEmployeePosition = async (req, res, next) => {
     await Position.findByIdAndUpdate(newPosition, {
       $inc: { hiredEmployees: 1 },
     });
+
+    // Handle department employee count if department changes
+    const oldDepartmentId = oldPositionDoc?.department?.toString();
+    const newDepartmentId = newPositionDoc.department?.toString();
+
+    if (oldDepartmentId !== newDepartmentId) {
+      // Decrement count from old department
+      await Department.findByIdAndUpdate(oldDepartmentId, {
+        $inc: { employeeCount: -1 },
+      });
+      // Increment count for new department
+      await Department.findByIdAndUpdate(newDepartmentId, {
+        $inc: { employeeCount: 1 },
+      });
+    }
 
     // Handle leave balance adjustments if leave policy changes
     let leaveBalanceChanges = [];
