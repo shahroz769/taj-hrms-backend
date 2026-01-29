@@ -2,13 +2,22 @@ import mongoose from "mongoose";
 
 const employeeSchema = new mongoose.Schema(
   {
-    position: { type: mongoose.Schema.Types.ObjectId, ref: "Position", required: true },
+    position: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Position",
+      required: true,
+    },
     salaryPolicy: { type: mongoose.Schema.Types.ObjectId, ref: "SalaryPolicy" },
     status: {
       type: String,
       enum: ["Active", "Inactive", "Resigned", "Terminated"],
       default: "Active",
       required: true,
+    },
+    employmentType: {
+      type: String,
+      enum: ["Permanent", "Contract", "Part Time"],
+      default: "Permanent",
     },
 
     // --- Personal Information ---
@@ -89,7 +98,7 @@ const employeeSchema = new mongoose.Schema(
       restrictedPlacesDetails: String,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const Employee = mongoose.model("Employee", employeeSchema);

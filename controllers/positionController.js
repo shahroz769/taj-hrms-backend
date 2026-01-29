@@ -79,6 +79,29 @@ export const getAllPositionsFiltersList = async (req, res, next) => {
   }
 };
 
+// @description     Get positions by department ID
+// @route           GET /api/positions/by-department/:departmentId
+// @access          Admin
+export const getPositionsByDepartment = async (req, res, next) => {
+  try {
+    const { departmentId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(departmentId)) {
+      res.status(400);
+      throw new Error("Invalid department ID");
+    }
+
+    const positions = await Position.find({ department: departmentId })
+      .populate("leavePolicy", "name")
+      .select("name leavePolicy employeeLimit hiredEmployees");
+
+    res.json({ positions });
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+};
+
 // @description     Get single position by ID
 // @route           GET /api/positions/:id
 // @access          Admin
@@ -122,7 +145,7 @@ export const createPosition = async (req, res, next) => {
     ) {
       res.status(400);
       throw new Error(
-        "Position name, employee limit, reports to, department and leave policy are required"
+        "Position name, employee limit, reports to, department and leave policy are required",
       );
     }
 
@@ -168,7 +191,7 @@ export const createPosition = async (req, res, next) => {
       if (currentPositionCount >= limit) {
         res.status(400);
         throw new Error(
-          `Position limit reached for ${departmentDoc.name} department. Maximum positions allowed: ${limit}`
+          `Position limit reached for ${departmentDoc.name} department. Maximum positions allowed: ${limit}`,
         );
       }
     }
@@ -182,7 +205,7 @@ export const createPosition = async (req, res, next) => {
     if (existingPosition) {
       res.status(400);
       throw new Error(
-        "Position with this name already exists in this department"
+        "Position with this name already exists in this department",
       );
     }
 
@@ -235,7 +258,7 @@ export const updatePosition = async (req, res, next) => {
     ) {
       res.status(400);
       throw new Error(
-        "Position name, employee limit, reports to, department and leave policy are required"
+        "Position name, employee limit, reports to, department and leave policy are required",
       );
     }
 
@@ -282,7 +305,7 @@ export const updatePosition = async (req, res, next) => {
         if (currentPositionCount >= limit) {
           res.status(400);
           throw new Error(
-            `Position limit reached for ${departmentDoc.name} department. Maximum positions allowed: ${limit}`
+            `Position limit reached for ${departmentDoc.name} department. Maximum positions allowed: ${limit}`,
           );
         }
       }
@@ -302,7 +325,7 @@ export const updatePosition = async (req, res, next) => {
       if (existingPosition) {
         res.status(400);
         throw new Error(
-          "Position with this name already exists in this department"
+          "Position with this name already exists in this department",
         );
       }
     }
@@ -346,7 +369,7 @@ export const deletePosition = async (req, res, next) => {
     if (position.hiredEmployees > 0) {
       res.status(400);
       throw new Error(
-        "Cannot delete position with active employees. Please reassign employees first."
+        "Cannot delete position with active employees. Please reassign employees first.",
       );
     }
 

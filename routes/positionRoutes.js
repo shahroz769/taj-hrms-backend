@@ -7,6 +7,7 @@ import {
   deletePosition,
   updatePosition,
   getAllPositionsFiltersList,
+  getPositionsByDepartment,
 } from "../controllers/positionController.js";
 import { authorize } from "../middleware/rbacMiddleware.js";
 import { ROLES } from "../utils/roles.js";
@@ -21,7 +22,22 @@ router.get("/", protect, authorize(ROLES.admin), getAllPositions);
 // @route           GET /api/positions/filters
 // @description     Get all positions for filter
 // @access          Admin
-router.get("/filters", protect, authorize(ROLES.admin), getAllPositionsFiltersList);
+router.get(
+  "/filters",
+  protect,
+  authorize(ROLES.admin),
+  getAllPositionsFiltersList,
+);
+
+// @route           GET /api/positions/by-department/:departmentId
+// @description     Get positions by department ID
+// @access          Admin
+router.get(
+  "/by-department/:departmentId",
+  protect,
+  authorize(ROLES.admin),
+  getPositionsByDepartment,
+);
 
 // @route           GET /api/positions/:id
 // @description     Get single position

@@ -7,7 +7,6 @@ import PositionHistory from "../models/PositionHistory.js";
 import SalaryPolicyHistory from "../models/SalaryPolicyHistory.js";
 import {
   uploadToCloudinary,
-  deleteFromCloudinary,
 } from "../config/cloudinaryConfig.js";
 import mongoose from "mongoose";
 
