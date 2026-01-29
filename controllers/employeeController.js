@@ -5,9 +5,8 @@ import SalaryPolicy from "../models/SalaryPolicy.js";
 import LeaveBalance from "../models/LeaveBalance.js";
 import PositionHistory from "../models/PositionHistory.js";
 import SalaryPolicyHistory from "../models/SalaryPolicyHistory.js";
-import {
-  uploadToCloudinary,
-} from "../config/cloudinaryConfig.js";
+import EmployeeShift from "../models/EmployeeShift.js";
+import { uploadToCloudinary } from "../config/cloudinaryConfig.js";
 import mongoose from "mongoose";
 
 // Helper function to generate employee ID
@@ -110,9 +109,8 @@ export const createEmployee = async (req, res, next) => {
     }
 
     // Check if position exists and get leave policy
-    const positionDoc = await Position.findById(position).populate(
-      "leavePolicy"
-    );
+    const positionDoc =
+      await Position.findById(position).populate("leavePolicy");
     if (!positionDoc) {
       res.status(404);
       throw new Error("Position not found");
@@ -125,7 +123,7 @@ export const createEmployee = async (req, res, next) => {
       if (!isNaN(limit) && positionDoc.hiredEmployees >= limit) {
         res.status(400);
         throw new Error(
-          `Employee limit reached for ${positionDoc.name} position. Maximum employees allowed: ${limit}`
+          `Employee limit reached for ${positionDoc.name} position. Maximum employees allowed: ${limit}`,
         );
       }
     }
@@ -163,7 +161,7 @@ export const createEmployee = async (req, res, next) => {
         const frontResult = await uploadToCloudinary(
           req.files.cnicFront[0].buffer,
           `taj-hrms/employees/${employeeID}/cnic`,
-          "front"
+          "front",
         );
         cnicImages.front = frontResult.secure_url;
       }
@@ -172,7 +170,7 @@ export const createEmployee = async (req, res, next) => {
         const backResult = await uploadToCloudinary(
           req.files.cnicBack[0].buffer,
           `taj-hrms/employees/${employeeID}/cnic`,
-          "back"
+          "back",
         );
         cnicImages.back = backResult.secure_url;
       }
@@ -305,13 +303,13 @@ export const getAllEmployees = async (req, res, next) => {
     // }
 
     // Calculate skip value for pagination
-    const skip = (page - 1) * limit;
+    const skip = limit > 0 ? (page - 1) * limit : 0;
 
     // Get total count for pagination metadata
     const totalEmployees = await Employee.countDocuments(query);
 
     // Get paginated employees
-    let employees = await Employee.find(query)
+    let employeesQuery = Employee.find(query)
       .populate({
         path: "position",
         select: "name department",
@@ -321,9 +319,35 @@ export const getAllEmployees = async (req, res, next) => {
         },
       })
       .populate("salaryPolicy", "name")
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+      .sort({ createdAt: -1 });
+
+    // Only apply skip and limit if limit is greater than 0
+    if (limit > 0) {
+      employeesQuery = employeesQuery.skip(skip).limit(limit);
+    }
+
+    let employees = await employeesQuery.lean();
+
+    // Fetch current shifts for all employees in one query
+    const employeeIds = employees.map((emp) => emp._id);
+    const currentShifts = await EmployeeShift.find({
+      employee: { $in: employeeIds },
+      endDate: null,
+    })
+      .populate("shift", "name startTime endTime")
+      .lean();
+
+    // Create a map for quick lookup
+    const shiftMap = new Map();
+    for (const cs of currentShifts) {
+      shiftMap.set(cs.employee.toString(), cs.shift);
+    }
+
+    // Attach current shift to each employee
+    employees = employees.map((emp) => ({
+      ...emp,
+      currentShift: shiftMap.get(emp._id.toString()) || null,
+    }));
 
     // Apply department filter after population (if specified)
     // if (departmentFilter.trim()) {
@@ -337,7 +361,7 @@ export const getAllEmployees = async (req, res, next) => {
       employees,
       pagination: {
         currentPage: page,
-        totalPages: Math.ceil(totalEmployees / limit),
+        totalPages: limit > 0 ? Math.ceil(totalEmployees / limit) : 1,
         totalEmployees,
         limit,
       },
@@ -457,7 +481,7 @@ export const updateEmployee = async (req, res, next) => {
         const frontResult = await uploadToCloudinary(
           req.files.cnicFront[0].buffer,
           `taj-hrms/employees/${employee.employeeID}/cnic`,
-          "front"
+          "front",
         );
         employee.cnicImages.front = frontResult.secure_url;
       }
@@ -466,7 +490,7 @@ export const updateEmployee = async (req, res, next) => {
         const backResult = await uploadToCloudinary(
           req.files.cnicBack[0].buffer,
           `taj-hrms/employees/${employee.employeeID}/cnic`,
-          "back"
+          "back",
         );
         employee.cnicImages.back = backResult.secure_url;
       }
@@ -544,7 +568,7 @@ export const changeEmployeeStatus = async (req, res, next) => {
     if (!status || !validStatuses.includes(status)) {
       res.status(400);
       throw new Error(
-        `Invalid status. Must be one of: ${validStatuses.join(", ")}`
+        `Invalid status. Must be one of: ${validStatuses.join(", ")}`,
       );
     }
 
@@ -642,7 +666,7 @@ export const changeEmployeePosition = async (req, res, next) => {
       if (!isNaN(limit) && newPositionDoc.hiredEmployees >= limit) {
         res.status(400);
         throw new Error(
-          `Employee limit reached for ${newPositionDoc.name} position. Maximum employees allowed: ${limit}`
+          `Employee limit reached for ${newPositionDoc.name} position. Maximum employees allowed: ${limit}`,
         );
       }
     }
@@ -708,7 +732,7 @@ export const changeEmployeePosition = async (req, res, next) => {
           // Leave type exists in both policies
           const oldEntitlement =
             oldPositionDoc?.leavePolicy?.entitlements?.find(
-              (e) => e.leaveType._id.toString() === leaveTypeId
+              (e) => e.leaveType._id.toString() === leaveTypeId,
             );
           const oldTotalDays = oldEntitlement?.days || 0;
           const newTotalDays = entitlement.days;
@@ -716,12 +740,12 @@ export const changeEmployeePosition = async (req, res, next) => {
           if (newTotalDays > oldTotalDays) {
             // More leaves in new policy - add prorated difference to remaining
             const additionalDays = Math.round(
-              (newTotalDays - oldTotalDays) * prorationFactor
+              (newTotalDays - oldTotalDays) * prorationFactor,
             );
             existingBalance.totalDays = oldTotalDays + additionalDays;
             existingBalance.remainingDays = Math.max(
               0,
-              existingBalance.totalDays - existingBalance.usedDays
+              existingBalance.totalDays - existingBalance.usedDays,
             );
             await existingBalance.save();
             leaveBalanceChanges.push({
@@ -738,11 +762,11 @@ export const changeEmployeePosition = async (req, res, next) => {
               existingBalance.usedDays;
             existingBalance.totalDays = Math.max(
               existingBalance.usedDays,
-              newProratedTotal
+              newProratedTotal,
             );
             existingBalance.remainingDays = Math.max(
               0,
-              existingBalance.totalDays - existingBalance.usedDays
+              existingBalance.totalDays - existingBalance.usedDays,
             );
             await existingBalance.save();
             leaveBalanceChanges.push({
@@ -990,7 +1014,7 @@ export const renewEmployeeLeaveBalances = async (req, res, next) => {
     if (!employee.position?.leavePolicy) {
       res.status(400);
       throw new Error(
-        "Employee's position does not have a leave policy assigned"
+        "Employee's position does not have a leave policy assigned",
       );
     }
 
@@ -1003,7 +1027,7 @@ export const renewEmployeeLeaveBalances = async (req, res, next) => {
     if (existingBalances.length > 0) {
       res.status(400);
       throw new Error(
-        `Leave balances for year ${targetYear} already exist for this employee`
+        `Leave balances for year ${targetYear} already exist for this employee`,
       );
     }
 
@@ -1101,7 +1125,7 @@ export const renewAllEmployeesLeaveBalances = async (req, res, next) => {
             usedDays: 0,
             remainingDays: entitlement.days,
             year: targetYear,
-          })
+          }),
         );
 
         await LeaveBalance.insertMany(balancesToCreate);

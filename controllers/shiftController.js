@@ -1,4 +1,5 @@
 import Shift from "../models/Shift.js";
+import EmployeeShift from "../models/EmployeeShift.js";
 import mongoose from "mongoose";
 import { ROLES } from "../utils/roles.js";
 
@@ -110,7 +111,11 @@ export const createShift = async (req, res, next) => {
       throw new Error("End time is required");
     }
 
-    if (!workingDays || !Array.isArray(workingDays) || workingDays.length === 0) {
+    if (
+      !workingDays ||
+      !Array.isArray(workingDays) ||
+      workingDays.length === 0
+    ) {
       res.status(400);
       throw new Error("At least one working day is required");
     }
@@ -129,7 +134,7 @@ export const createShift = async (req, res, next) => {
     if (invalidDays.length > 0) {
       res.status(400);
       throw new Error(
-        `Invalid working day(s): ${invalidDays.join(", ")}. Valid days are: ${validDays.join(", ")}`
+        `Invalid working day(s): ${invalidDays.join(", ")}. Valid days are: ${validDays.join(", ")}`,
       );
     }
 
@@ -202,7 +207,11 @@ export const updateShift = async (req, res, next) => {
       throw new Error("End time is required");
     }
 
-    if (!workingDays || !Array.isArray(workingDays) || workingDays.length === 0) {
+    if (
+      !workingDays ||
+      !Array.isArray(workingDays) ||
+      workingDays.length === 0
+    ) {
       res.status(400);
       throw new Error("At least one working day is required");
     }
@@ -221,7 +230,7 @@ export const updateShift = async (req, res, next) => {
     if (invalidDays.length > 0) {
       res.status(400);
       throw new Error(
-        `Invalid working day(s): ${invalidDays.join(", ")}. Valid days are: ${validDays.join(", ")}`
+        `Invalid working day(s): ${invalidDays.join(", ")}. Valid days are: ${validDays.join(", ")}`,
       );
     }
 
@@ -279,7 +288,7 @@ export const updateShiftStatus = async (req, res, next) => {
     if (!status || !validStatuses.includes(status)) {
       res.status(400);
       throw new Error(
-        `Invalid status. Valid statuses are: ${validStatuses.join(", ")}`
+        `Invalid status. Valid statuses are: ${validStatuses.join(", ")}`,
       );
     }
 
@@ -316,15 +325,17 @@ export const deleteShift = async (req, res, next) => {
       throw new Error("Shift not found");
     }
 
-    // TODO: Check if shift is assigned to any employees when Employee model is implemented
-    // Uncomment and modify the code below when Employee model is ready:
-    // const employeeCount = await Employee.countDocuments({ shift: id });
-    // if (employeeCount > 0) {
-    //   res.status(400);
-    //   throw new Error(
-    //     `Cannot delete shift with ${employeeCount} active employee(s). Please reassign employees first.`
-    //   );
-    // }
+    // Check if shift is assigned to any employees (active assignments)
+    const activeAssignmentCount = await EmployeeShift.countDocuments({
+      shift: id,
+      endDate: null,
+    });
+    if (activeAssignmentCount > 0) {
+      res.status(400);
+      throw new Error(
+        `Cannot delete shift with ${activeAssignmentCount} active employee(s) assigned. Please reassign employees first.`,
+      );
+    }
 
     await shift.deleteOne();
 
