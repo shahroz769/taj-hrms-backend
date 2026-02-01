@@ -93,7 +93,12 @@ export const getPaymentsByContract = async (req, res, next) => {
     const { contractId } = req.params;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
-    const skip = (page - 1) * limit;
+    const startDate = req.query.startDate;
+    const endDate = req.query.endDate;
+
+    // Support "All" option (limit = 0)
+    const shouldPaginate = limit > 0;
+    const skip = shouldPaginate ? (page - 1) * limit : 0;
 
     // Validate ObjectId
     if (!mongoose.Types.ObjectId.isValid(contractId)) {
@@ -109,16 +114,39 @@ export const getPaymentsByContract = async (req, res, next) => {
       throw new Error("Contract not found");
     }
 
+    // Build date filter query
+    const dateFilter = {};
+    if (startDate || endDate) {
+      dateFilter.paymentDate = {};
+      if (startDate) {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        dateFilter.paymentDate.$gte = start;
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        dateFilter.paymentDate.$lte = end;
+      }
+    }
+
+    // Build query
+    const query = { contractId, ...dateFilter };
+
     // Get payment records
-    const payments = await ContractPayment.find({ contractId })
+    let paymentsQuery = ContractPayment.find(query)
       .sort({ paymentDate: -1 })
-      .skip(skip)
-      .limit(limit)
       .populate("contractId", "contractName contractAmount");
 
+    if (shouldPaginate) {
+      paymentsQuery = paymentsQuery.skip(skip).limit(limit);
+    }
+
+    const payments = await paymentsQuery;
+
     // Get total count
-    const totalItems = await ContractPayment.countDocuments({ contractId });
-    const totalPages = Math.ceil(totalItems / limit);
+    const totalItems = await ContractPayment.countDocuments(query);
+    const totalPages = shouldPaginate ? Math.ceil(totalItems / limit) : 1;
 
     // Calculate total amount paid
     const paymentResult = await ContractPayment.aggregate([
@@ -138,7 +166,7 @@ export const getPaymentsByContract = async (req, res, next) => {
         currentPage: page,
         totalPages,
         totalItems,
-        limit,
+        limit: shouldPaginate ? limit : totalItems,
       },
     });
   } catch (error) {
