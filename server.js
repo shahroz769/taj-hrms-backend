@@ -12,6 +12,9 @@ import salaryComponentRouter from "./routes/salaryComponentRoutes.js";
 import salaryPolicyRouter from "./routes/salaryPolicyRoutes.js";
 import employeeRouter from "./routes/employeeRoutes.js";
 import employeeShiftRouter from "./routes/employeeShiftRoutes.js";
+import contractRouter from "./routes/contractRoutes.js";
+import contractAttendanceRouter from "./routes/contractAttendanceRoutes.js";
+import contractPaymentRouter from "./routes/contractPaymentRoutes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import connectDB from "./config/db.js";
 import chalk from "chalk";
@@ -55,6 +58,9 @@ app.use("/api/salary-components", salaryComponentRouter);
 app.use("/api/salary-policies", salaryPolicyRouter);
 app.use("/api/employees", employeeRouter);
 app.use("/api/employee-shifts", employeeShiftRouter);
+app.use("/api/contracts", contractRouter);
+app.use("/api/contract-attendances", contractAttendanceRouter);
+app.use("/api/contract-payments", contractPaymentRouter);
 
 // 404 Fallback
 app.use((req, res, next) => {
