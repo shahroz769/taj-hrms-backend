@@ -1,13 +1,13 @@
 import mongoose from "mongoose";
 
-const salaryPolicySchema = new mongoose.Schema(
+const allowancePolicySchema = new mongoose.Schema(
   {
     name: { type: String, required: true, unique: true },
     components: [
       {
-        salaryComponent: {
+        allowanceComponent: {
           type: mongoose.Schema.Types.ObjectId,
-          ref: "SalaryComponent",
+          ref: "AllowanceComponent",
           required: true,
         },
         amount: {
@@ -26,15 +26,10 @@ const salaryPolicySchema = new mongoose.Schema(
       type: String,
       default: "",
     },
-    // createdBy: {
-    //   type: mongoose.Schema.Types.ObjectId,
-    //   ref: "Employee",
-    //   required: true,
-    // },
   },
   { timestamps: true }
 );
 
-const SalaryPolicy = mongoose.model("SalaryPolicy", salaryPolicySchema);
+const AllowancePolicy = mongoose.model("AllowancePolicy", allowancePolicySchema);
 
-export default SalaryPolicy;
+export default AllowancePolicy;

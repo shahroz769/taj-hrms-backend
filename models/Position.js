@@ -21,6 +21,11 @@ const positionSchema = new mongoose.Schema(
       ref: "LeavePolicy",
       required: true,
     },
+    allowancePolicy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "AllowancePolicy",
+      default: null,
+    },
     employeeLimit: {
       type: String,
       required: [true, "Employee Limit is required"],

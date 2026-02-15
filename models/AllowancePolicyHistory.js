@@ -1,20 +1,20 @@
 import mongoose from "mongoose";
 
-const salaryPolicyHistorySchema = new mongoose.Schema(
+const allowancePolicyHistorySchema = new mongoose.Schema(
   {
-    employee: {
+    position: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Employee",
+      ref: "Position",
       required: true,
     },
-    fromSalaryPolicy: {
+    fromAllowancePolicy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "SalaryPolicy",
+      ref: "AllowancePolicy",
       default: null,
     },
-    toSalaryPolicy: {
+    toAllowancePolicy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "SalaryPolicy",
+      ref: "AllowancePolicy",
       required: true,
     },
     changedBy: {
@@ -38,12 +38,12 @@ const salaryPolicyHistorySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Index for efficient queries by employee
-salaryPolicyHistorySchema.index({ employee: 1, changedAt: -1 });
+// Index for efficient queries by position
+allowancePolicyHistorySchema.index({ position: 1, changedAt: -1 });
 
-const SalaryPolicyHistory = mongoose.model(
-  "SalaryPolicyHistory",
-  salaryPolicyHistorySchema
+const AllowancePolicyHistory = mongoose.model(
+  "AllowancePolicyHistory",
+  allowancePolicyHistorySchema
 );
 
-export default SalaryPolicyHistory;
+export default AllowancePolicyHistory;

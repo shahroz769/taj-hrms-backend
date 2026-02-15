@@ -13,9 +13,7 @@ import {
   updateEmployee,
   changeEmployeeStatus,
   changeEmployeePosition,
-  changeEmployeeSalaryPolicy,
   getEmployeePositionHistory,
-  getEmployeeSalaryHistory,
   getEmployeesList,
   renewEmployeeLeaveBalances,
   renewAllEmployeesLeaveBalances,
@@ -93,16 +91,6 @@ router.patch(
   changeEmployeePosition
 );
 
-// @route           PATCH /api/employees/:id/salary-policy
-// @description     Change employee salary policy
-// @access          Admin only
-router.patch(
-  "/:id/salary-policy",
-  protect,
-  authorize(ROLES.admin),
-  changeEmployeeSalaryPolicy
-);
-
 // @route           GET /api/employees/:id/position-history
 // @description     Get employee position history
 // @access          Admin
@@ -111,16 +99,6 @@ router.get(
   protect,
   authorize(ROLES.admin),
   getEmployeePositionHistory
-);
-
-// @route           GET /api/employees/:id/salary-history
-// @description     Get employee salary policy history
-// @access          Admin
-router.get(
-  "/:id/salary-history",
-  protect,
-  authorize(ROLES.admin),
-  getEmployeeSalaryHistory
 );
 
 // @route           GET /api/employees/:id/leave-balances

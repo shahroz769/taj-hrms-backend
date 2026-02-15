@@ -2,10 +2,8 @@ import Employee from "../models/Employee.js";
 import Position from "../models/Position.js";
 import Department from "../models/Department.js";
 import LeavePolicy from "../models/LeavePolicy.js";
-import SalaryPolicy from "../models/SalaryPolicy.js";
 import LeaveBalance from "../models/LeaveBalance.js";
 import PositionHistory from "../models/PositionHistory.js";
-import SalaryPolicyHistory from "../models/SalaryPolicyHistory.js";
 import EmployeeShift from "../models/EmployeeShift.js";
 import { uploadToCloudinary } from "../config/cloudinaryConfig.js";
 import mongoose from "mongoose";
@@ -80,7 +78,7 @@ export const createEmployee = async (req, res, next) => {
   try {
     const {
       position,
-      salaryPolicy,
+      basicSalary,
       fullName,
       gender,
       fatherName,
@@ -144,19 +142,6 @@ export const createEmployee = async (req, res, next) => {
       }
     }
 
-    // Validate salary policy if provided
-    if (salaryPolicy) {
-      if (!mongoose.Types.ObjectId.isValid(salaryPolicy)) {
-        res.status(400);
-        throw new Error("Invalid salary policy ID");
-      }
-      const salaryPolicyDoc = await SalaryPolicy.findById(salaryPolicy);
-      if (!salaryPolicyDoc) {
-        res.status(404);
-        throw new Error("Salary policy not found");
-      }
-    }
-
     // Check for duplicate CNIC
     if (cnic) {
       const existingEmployee = await Employee.findOne({ cnic: cnic.trim() });
@@ -173,22 +158,27 @@ export const createEmployee = async (req, res, next) => {
     let cnicImages = { front: null, back: null };
 
     if (req.files) {
-      if (req.files.cnicFront && req.files.cnicFront[0]) {
-        const frontResult = await uploadToCloudinary(
-          req.files.cnicFront[0].buffer,
-          `taj-hrms/employees/${employeeID}/cnic`,
-          "front",
-        );
-        cnicImages.front = frontResult.secure_url;
-      }
+      try {
+        if (req.files.cnicFront && req.files.cnicFront[0]) {
+          const frontResult = await uploadToCloudinary(
+            req.files.cnicFront[0].buffer,
+            `taj-hrms/employees/${employeeID}/cnic`,
+            "front",
+          );
+          cnicImages.front = frontResult.secure_url;
+        }
 
-      if (req.files.cnicBack && req.files.cnicBack[0]) {
-        const backResult = await uploadToCloudinary(
-          req.files.cnicBack[0].buffer,
-          `taj-hrms/employees/${employeeID}/cnic`,
-          "back",
-        );
-        cnicImages.back = backResult.secure_url;
+        if (req.files.cnicBack && req.files.cnicBack[0]) {
+          const backResult = await uploadToCloudinary(
+            req.files.cnicBack[0].buffer,
+            `taj-hrms/employees/${employeeID}/cnic`,
+            "back",
+          );
+          cnicImages.back = backResult.secure_url;
+        }
+      } catch (uploadError) {
+        res.status(500);
+        throw new Error(`Failed to upload CNIC images: ${uploadError.message}`);
       }
     }
 
@@ -208,7 +198,7 @@ export const createEmployee = async (req, res, next) => {
     const newEmployee = new Employee({
       employeeID,
       position,
-      salaryPolicy: salaryPolicy || null,
+      basicSalary: basicSalary ? Number(basicSalary) : 0,
       status: "Active",
       fullName: fullName.trim(),
       gender,
@@ -262,22 +252,16 @@ export const createEmployee = async (req, res, next) => {
       reason: "Initial assignment on employee creation",
     });
 
-    // Create initial salary policy history if salary policy is assigned
-    if (salaryPolicy) {
-      await SalaryPolicyHistory.create({
-        employee: savedEmployee._id,
-        fromSalaryPolicy: null,
-        toSalaryPolicy: salaryPolicy,
-        changedBy: req.user._id,
-        effectiveDate: joiningDate || new Date(),
-        reason: "Initial assignment on employee creation",
-      });
-    }
-
     // Populate references for response
     const populatedEmployee = await Employee.findById(savedEmployee._id)
-      .populate("position", "name department")
-      .populate("salaryPolicy", "name");
+      .populate({
+        path: "position",
+        select: "name department allowancePolicy",
+        populate: [
+          { path: "department", select: "name" },
+          { path: "allowancePolicy", select: "name" },
+        ],
+      });
 
     res.status(201).json({
       employee: populatedEmployee,
@@ -374,13 +358,12 @@ export const getAllEmployees = async (req, res, next) => {
     let employeesQuery = Employee.find(query)
       .populate({
         path: "position",
-        select: "name department",
-        populate: {
-          path: "department",
-          select: "name",
-        },
+        select: "name department allowancePolicy",
+        populate: [
+          { path: "department", select: "name" },
+          { path: "allowancePolicy", select: "name" },
+        ],
       })
-      .populate("salaryPolicy", "name")
       .sort({ createdAt: -1 });
 
     // Only apply skip and limit if limit is greater than 0
@@ -444,19 +427,19 @@ export const getEmployeeById = async (req, res, next) => {
     const employee = await Employee.findById(id)
       .populate({
         path: "position",
-        select: "name department leavePolicy",
+        select: "name department leavePolicy allowancePolicy",
         populate: [
           { path: "department", select: "name" },
           { path: "leavePolicy", select: "name" },
+          {
+            path: "allowancePolicy",
+            select: "name components",
+            populate: {
+              path: "components.allowanceComponent",
+              select: "name",
+            },
+          },
         ],
-      })
-      .populate({
-        path: "salaryPolicy",
-        select: "name components",
-        populate: {
-          path: "components.salaryComponent",
-          select: "name type",
-        },
       });
 
     if (!employee) {
@@ -519,7 +502,7 @@ export const updateEmployee = async (req, res, next) => {
       guarantor,
       legal,
       position,
-      salaryPolicy,
+      basicSalary,
       employmentType,
     } = req.body;
 
@@ -537,22 +520,27 @@ export const updateEmployee = async (req, res, next) => {
 
     // Handle CNIC image uploads
     if (req.files) {
-      if (req.files.cnicFront && req.files.cnicFront[0]) {
-        const frontResult = await uploadToCloudinary(
-          req.files.cnicFront[0].buffer,
-          `taj-hrms/employees/${employee.employeeID}/cnic`,
-          "front",
-        );
-        employee.cnicImages.front = frontResult.secure_url;
-      }
+      try {
+        if (req.files.cnicFront && req.files.cnicFront[0]) {
+          const frontResult = await uploadToCloudinary(
+            req.files.cnicFront[0].buffer,
+            `taj-hrms/employees/${employee.employeeID}/cnic`,
+            "front",
+          );
+          employee.cnicImages.front = frontResult.secure_url;
+        }
 
-      if (req.files.cnicBack && req.files.cnicBack[0]) {
-        const backResult = await uploadToCloudinary(
-          req.files.cnicBack[0].buffer,
-          `taj-hrms/employees/${employee.employeeID}/cnic`,
-          "back",
-        );
-        employee.cnicImages.back = backResult.secure_url;
+        if (req.files.cnicBack && req.files.cnicBack[0]) {
+          const backResult = await uploadToCloudinary(
+            req.files.cnicBack[0].buffer,
+            `taj-hrms/employees/${employee.employeeID}/cnic`,
+            "back",
+          );
+          employee.cnicImages.back = backResult.secure_url;
+        }
+      } catch (uploadError) {
+        res.status(500);
+        throw new Error(`Failed to upload CNIC images: ${uploadError.message}`);
       }
     }
 
@@ -570,7 +558,6 @@ export const updateEmployee = async (req, res, next) => {
 
     // Track changes for response
     let positionChanged = false;
-    let salaryPolicyChanged = false;
     let leaveBalanceChanges = [];
 
     // Handle position change
@@ -762,33 +749,9 @@ export const updateEmployee = async (req, res, next) => {
       positionChanged = true;
     }
 
-    // Handle salary policy change
-    if (salaryPolicy && salaryPolicy !== employee.salaryPolicy?.toString()) {
-      if (!mongoose.Types.ObjectId.isValid(salaryPolicy)) {
-        res.status(400);
-        throw new Error("Invalid salary policy ID");
-      }
-
-      const newSalaryPolicyDoc = await SalaryPolicy.findById(salaryPolicy);
-      if (!newSalaryPolicyDoc) {
-        res.status(404);
-        throw new Error("Salary policy not found");
-      }
-
-      const fromSalaryPolicy = employee.salaryPolicy;
-
-      // Create salary policy history record
-      await SalaryPolicyHistory.create({
-        employee: id,
-        fromSalaryPolicy,
-        toSalaryPolicy: salaryPolicy,
-        changedBy: req.user._id,
-        effectiveDate: new Date(),
-        reason: "Updated via employee edit form",
-      });
-
-      employee.salaryPolicy = salaryPolicy;
-      salaryPolicyChanged = true;
+    // Handle basic salary change
+    if (basicSalary !== undefined) {
+      employee.basicSalary = Number(basicSalary) || 0;
     }
 
     // Handle employment type change
@@ -838,18 +801,16 @@ export const updateEmployee = async (req, res, next) => {
     const populatedEmployee = await Employee.findById(updatedEmployee._id)
       .populate({
         path: "position",
-        select: "name department",
-        populate: {
-          path: "department",
-          select: "name",
-        },
-      })
-      .populate("salaryPolicy", "name");
+        select: "name department allowancePolicy",
+        populate: [
+          { path: "department", select: "name" },
+          { path: "allowancePolicy", select: "name" },
+        ],
+      });
 
     res.json({
       employee: populatedEmployee,
       positionChanged,
-      salaryPolicyChanged,
       leaveBalanceChanges,
     });
   } catch (err) {
@@ -1140,79 +1101,20 @@ export const changeEmployeePosition = async (req, res, next) => {
     const updatedEmployee = await employee.save();
 
     const populatedEmployee = await Employee.findById(updatedEmployee._id)
-      .populate("position", "name department")
-      .populate("salaryPolicy", "name");
+      .populate({
+        path: "position",
+        select: "name department allowancePolicy",
+        populate: [
+          { path: "department", select: "name" },
+          { path: "allowancePolicy", select: "name" },
+        ],
+      });
 
     res.json({
       message: "Employee position changed successfully",
       employee: populatedEmployee,
       leaveBalanceChanges,
       effectiveDate: parsedEffectiveDate,
-    });
-  } catch (err) {
-    console.log(err);
-    next(err);
-  }
-};
-
-// @description     Change employee salary policy
-// @route           PATCH /api/employees/:id/salary-policy
-// @access          Admin
-export const changeEmployeeSalaryPolicy = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const { newSalaryPolicy, effectiveDate, reason } = req.body;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      res.status(404);
-      throw new Error("Employee Not Found");
-    }
-
-    if (!newSalaryPolicy) {
-      res.status(400);
-      throw new Error("New salary policy is required");
-    }
-
-    if (!mongoose.Types.ObjectId.isValid(newSalaryPolicy)) {
-      res.status(400);
-      throw new Error("Invalid salary policy ID");
-    }
-
-    const employee = await Employee.findById(id);
-    if (!employee) {
-      res.status(404);
-      throw new Error("Employee not found");
-    }
-
-    const newSalaryPolicyDoc = await SalaryPolicy.findById(newSalaryPolicy);
-    if (!newSalaryPolicyDoc) {
-      res.status(404);
-      throw new Error("Salary policy not found");
-    }
-
-    const fromSalaryPolicy = employee.salaryPolicy;
-
-    // Create salary policy history record
-    await SalaryPolicyHistory.create({
-      employee: id,
-      fromSalaryPolicy,
-      toSalaryPolicy: newSalaryPolicy,
-      changedBy: req.user._id,
-      effectiveDate: effectiveDate || new Date(),
-      reason: reason || "",
-    });
-
-    // Update employee
-    employee.salaryPolicy = newSalaryPolicy;
-    const updatedEmployee = await employee.save();
-
-    const populatedEmployee = await Employee.findById(updatedEmployee._id)
-      .populate("position", "name department")
-      .populate("salaryPolicy", "name");
-
-    res.json({
-      message: "Employee salary policy changed successfully",
-      employee: populatedEmployee,
     });
   } catch (err) {
     console.log(err);
@@ -1251,44 +1153,6 @@ export const getEmployeePositionHistory = async (req, res, next) => {
         employeeID: employee.employeeID,
       },
       positionHistory,
-    });
-  } catch (err) {
-    console.log(err);
-    next(err);
-  }
-};
-
-// @description     Get employee salary policy history
-// @route           GET /api/employees/:id/salary-history
-// @access          Admin
-export const getEmployeeSalaryHistory = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      res.status(404);
-      throw new Error("Employee Not Found");
-    }
-
-    const employee = await Employee.findById(id).select("fullName employeeID");
-    if (!employee) {
-      res.status(404);
-      throw new Error("Employee not found");
-    }
-
-    const salaryHistory = await SalaryPolicyHistory.find({ employee: id })
-      .populate("fromSalaryPolicy", "name")
-      .populate("toSalaryPolicy", "name")
-      .populate("changedBy", "name")
-      .sort({ changedAt: -1 });
-
-    res.json({
-      employee: {
-        _id: employee._id,
-        fullName: employee.fullName,
-        employeeID: employee.employeeID,
-      },
-      salaryHistory,
     });
   } catch (err) {
     console.log(err);

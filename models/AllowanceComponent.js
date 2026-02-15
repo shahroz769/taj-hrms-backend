@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const salaryComponentSchema = new mongoose.Schema(
+const allowanceComponentSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, unique: true },
     status: {
@@ -12,15 +12,10 @@ const salaryComponentSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
-    // createdBy: {
-    //   type: mongoose.Schema.Types.ObjectId,
-    //   ref: "Employee",
-    //   required: true,
-    // },
   },
   { timestamps: true }
 );
 
-const SalaryComponent = mongoose.model("SalaryComponent", salaryComponentSchema);
+const AllowanceComponent = mongoose.model("AllowanceComponent", allowanceComponentSchema);
 
-export default SalaryComponent;
+export default AllowanceComponent;

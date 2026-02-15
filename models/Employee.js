@@ -7,7 +7,11 @@ const employeeSchema = new mongoose.Schema(
       ref: "Position",
       required: true,
     },
-    salaryPolicy: { type: mongoose.Schema.Types.ObjectId, ref: "SalaryPolicy" },
+    basicSalary: {
+      type: Number,
+      default: 0,
+      min: [0, "Basic salary cannot be negative"],
+    },
     status: {
       type: String,
       enum: ["Active", "Inactive", "Resigned", "Terminated"],
