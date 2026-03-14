@@ -5,7 +5,10 @@ import Attendance from "../models/Attendance.js";
 import Payroll from "../models/Payroll.js";
 import PayrollArrearsLedger from "../models/PayrollArrearsLedger.js";
 import AllowancePolicy from "../models/AllowancePolicy.js";
-import { isMonthClosedInPakistanTime, getMonthStartEndUtcForPakistan } from "../utils/timezone.js";
+import {
+  isMonthClosedInPakistanTime,
+  getMonthStartEndUtcForPakistan,
+} from "../utils/timezone.js";
 import {
   calculateEmployeePayroll,
   settleArrearsForPayroll,
@@ -37,7 +40,10 @@ const parsePagination = (req) => {
 };
 
 const getEligibleEmployeeIds = async ({ year, month }) => {
-  const { monthStartUtc, nextMonthStartUtc } = getMonthStartEndUtcForPakistan(year, month);
+  const { monthStartUtc, nextMonthStartUtc } = getMonthStartEndUtcForPakistan(
+    year,
+    month,
+  );
 
   const activeEmployees = await Employee.find({
     status: "Active",
@@ -52,11 +58,13 @@ const getEligibleEmployeeIds = async ({ year, month }) => {
     settled: false,
   });
 
-  return [...new Set([
-    ...activeEmployees.map((item) => item._id.toString()),
-    ...attendanceEmployees.map((item) => item.toString()),
-    ...arrearsEmployees.map((item) => item.toString()),
-  ])];
+  return [
+    ...new Set([
+      ...activeEmployees.map((item) => item._id.toString()),
+      ...attendanceEmployees.map((item) => item.toString()),
+      ...arrearsEmployees.map((item) => item.toString()),
+    ]),
+  ];
 };
 
 const validateYearMonth = (year, month, res) => {
@@ -75,13 +83,21 @@ const validateYearMonth = (year, month, res) => {
 
   if (!isMonthClosedInPakistanTime(parsedYear, parsedMonth)) {
     res.status(400);
-    throw new Error("Payroll can be generated only for months fully closed in Pakistan time (Asia/Karachi)");
+    throw new Error(
+      "Payroll can be generated only for months fully closed in Pakistan time (Asia/Karachi)",
+    );
   }
 
   return { parsedYear, parsedMonth };
 };
 
-const buildPayrollError = (employee, year, month, reasonCode, reasonMessage) => ({
+const buildPayrollError = (
+  employee,
+  year,
+  month,
+  reasonCode,
+  reasonMessage,
+) => ({
   employeeId: employee?._id || null,
   employeeName: employee?.fullName || "Unknown Employee",
   year,
@@ -194,7 +210,11 @@ export const getPayrolls = async (req, res, next) => {
     const skip = (page - 1) * limit;
 
     const [rows, total] = await Promise.all([
-      Payroll.find(query).sort({ year: -1, month: -1, createdAt: -1 }).skip(skip).limit(limit).lean(),
+      Payroll.find(query)
+        .sort({ year: -1, month: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
       Payroll.countDocuments(query),
     ]);
 
@@ -226,7 +246,10 @@ export const previewPayrollGeneration = async (req, res, next) => {
       throw new Error("Year and month are required");
     }
 
-    const employeeIds = await getEligibleEmployeeIds({ year: parsedYear, month: parsedMonth });
+    const employeeIds = await getEligibleEmployeeIds({
+      year: parsedYear,
+      month: parsedMonth,
+    });
 
     res.json({
       year: parsedYear,
@@ -247,7 +270,10 @@ export const generatePayrolls = async (req, res, next) => {
     const { year, month, forceReplace = false } = req.body || {};
     const { parsedYear, parsedMonth } = validateYearMonth(year, month, res);
 
-    const employeeIds = await getEligibleEmployeeIds({ year: parsedYear, month: parsedMonth });
+    const employeeIds = await getEligibleEmployeeIds({
+      year: parsedYear,
+      month: parsedMonth,
+    });
 
     const employees = await Employee.find({ _id: { $in: employeeIds } })
       .populate({
@@ -278,8 +304,8 @@ export const generatePayrolls = async (req, res, next) => {
               parsedYear,
               parsedMonth,
               "PAYROLL_EXISTS",
-              "Payroll already exists for this employee and month"
-            )
+              "Payroll already exists for this employee and month",
+            ),
           );
           continue;
         }
@@ -300,8 +326,8 @@ export const generatePayrolls = async (req, res, next) => {
             parsedYear,
             parsedMonth,
             "GENERATION_FAILED",
-            error.message || "Failed to generate payroll"
-          )
+            error.message || "Failed to generate payroll",
+          ),
         );
       }
     }
@@ -384,7 +410,7 @@ export const getPayrollById = async (req, res, next) => {
 
     const payroll = await Payroll.findById(id).populate(
       "arrearsLedgerEntries",
-      "sourceYear sourceMonth amount reason"
+      "sourceYear sourceMonth amount reason",
     );
 
     if (!payroll) {
@@ -412,7 +438,7 @@ export const getPayslipPayload = async (req, res, next) => {
 
     const payroll = await Payroll.findById(id).populate(
       "arrearsLedgerEntries",
-      "sourceYear sourceMonth amount reason"
+      "sourceYear sourceMonth amount reason",
     );
 
     if (!payroll) {
@@ -443,7 +469,7 @@ export const downloadPayslipPdf = async (req, res, next) => {
 
     const payroll = await Payroll.findById(id).populate(
       "arrearsLedgerEntries",
-      "sourceYear sourceMonth amount reason"
+      "sourceYear sourceMonth amount reason",
     );
 
     if (!payroll) {
@@ -454,7 +480,7 @@ export const downloadPayslipPdf = async (req, res, next) => {
     const monthName = MONTH_NAMES[payroll.month - 1];
 
     const filename = `${payroll.employeeSnapshot.employeeID || "employee"}-${payroll.year}-${String(
-      payroll.month
+      payroll.month,
     ).padStart(2, "0")}-payslip.pdf`;
 
     res.setHeader("Content-Type", "application/pdf");
@@ -472,10 +498,12 @@ export const downloadPayslipPdf = async (req, res, next) => {
 
     doc.moveUp(3);
     doc.text(`${monthName} ${payroll.year}`, { align: "right" });
-    doc.text(`Employee ID: ${payroll.employeeSnapshot.employeeID}`, { align: "right" });
+    doc.text(`Employee ID: ${payroll.employeeSnapshot.employeeID}`, {
+      align: "right",
+    });
     doc.text(
       `Joining Date: ${payroll.employeeSnapshot.joiningDate ? new Date(payroll.employeeSnapshot.joiningDate).toLocaleDateString() : "-"}`,
-      { align: "right" }
+      { align: "right" },
     );
 
     doc.moveDown(2);
@@ -484,8 +512,12 @@ export const downloadPayslipPdf = async (req, res, next) => {
 
     doc.font("Helvetica-Bold").fontSize(12).text("Attendance Summary");
     doc.font("Helvetica").fontSize(11);
-    doc.text(`Working Days: ${payroll.workingDays.totalScheduled}    Present: ${payroll.workingDays.present}    Absent: ${payroll.workingDays.absences}`);
-    doc.text(`Leaves: ${payroll.workingDays.leaves}    Half Day: ${payroll.workingDays.halfDay}    Late: ${payroll.workingDays.late}`);
+    doc.text(
+      `Working Days: ${payroll.workingDays.totalScheduled}    Present: ${payroll.workingDays.present}    Absent: ${payroll.workingDays.absences}`,
+    );
+    doc.text(
+      `Leaves: ${payroll.workingDays.leaves} (Paid: ${payroll.workingDays.paidLeaves || 0}, Unpaid: ${payroll.workingDays.unpaidLeaves || 0})    Half Day: ${payroll.workingDays.halfDay}    Late: ${payroll.workingDays.late}`,
+    );
     doc.moveDown(1);
 
     doc.moveTo(40, doc.y).lineTo(555, doc.y).stroke();
@@ -493,32 +525,73 @@ export const downloadPayslipPdf = async (req, res, next) => {
 
     doc.font("Helvetica-Bold").fontSize(12).text("Earnings");
     doc.font("Helvetica").fontSize(11);
-    doc.text(`Basic Salary: PKR ${Number(payroll.calculations.basicSalaryAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+    doc.text(
+      `Basic Salary: PKR ${Number(payroll.calculations.basicSalaryAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    );
 
     if (payroll.allowanceBreakdown?.length) {
       doc.moveDown(0.3);
       doc.font("Helvetica-Bold").fontSize(10).text("Allowances:");
       doc.font("Helvetica").fontSize(11);
       payroll.allowanceBreakdown.forEach((item) => {
-        doc.text(`  ${item.name}: PKR ${Number(item.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+        doc.text(
+          `  ${item.name}: PKR ${Number(item.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        );
       });
     }
 
     if (Number(payroll.calculations.arrearsAmount || 0) !== 0) {
-      doc.text(`Arrears: PKR ${Number(payroll.calculations.arrearsAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+      doc.text(
+        `Arrears: PKR ${Number(payroll.calculations.arrearsAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      );
     }
 
     doc.moveDown(0.5);
     doc.font("Helvetica-Bold");
-    doc.text(`Gross Salary: PKR ${Number(payroll.calculations.grossSalary || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+    doc.text(
+      `Gross Salary: PKR ${Number(payroll.calculations.grossSalary || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    );
     doc.font("Helvetica");
 
     doc.moveDown(1);
     doc.moveTo(40, doc.y).lineTo(555, doc.y).stroke();
     doc.moveDown(1);
 
+    // Deductions section
+    const hasLatePenalty = Number(payroll.calculations.latePenaltyAmount || 0) > 0;
+    const hasManualDeductions = Number(payroll.calculations.manualDeductionAmount || 0) > 0;
+
+    if (hasLatePenalty || hasManualDeductions) {
+      doc.font("Helvetica-Bold").fontSize(12).text("Deductions");
+      doc.font("Helvetica").fontSize(11);
+
+      if (hasLatePenalty) {
+        doc.text(
+          `Late Penalty: PKR ${Number(payroll.calculations.latePenaltyAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        );
+      }
+
+      if (hasManualDeductions && payroll.deductionBreakdown?.length) {
+        payroll.deductionBreakdown.forEach((item) => {
+          doc.text(
+            `  ${item.reason}: PKR ${Number(item.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          );
+        });
+      } else if (hasManualDeductions) {
+        doc.text(
+          `Manual Deductions: PKR ${Number(payroll.calculations.manualDeductionAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        );
+      }
+
+      doc.moveDown(1);
+      doc.moveTo(40, doc.y).lineTo(555, doc.y).stroke();
+      doc.moveDown(1);
+    }
+
     doc.font("Helvetica-Bold").fontSize(14);
-    doc.text(`Total Salary: PKR ${Number(payroll.calculations.totalSalary || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+    doc.text(
+      `Total Salary: PKR ${Number(payroll.calculations.totalSalary || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    );
     doc.font("Helvetica");
 
     doc.end();

@@ -131,7 +131,10 @@ export const getAllDisciplinaryActions = async (req, res, next) => {
       const expiryDate = new Date(action.actionDate);
       expiryDate.setDate(expiryDate.getDate() + 90);
       const diffMs = expiryDate - now;
-      const remainingDays = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+      const remainingDays = Math.max(
+        0,
+        Math.ceil(diffMs / (1000 * 60 * 60 * 24)),
+      );
 
       if (action.status === "Active" && remainingDays === 0) {
         bulkOps.push({
@@ -228,6 +231,15 @@ export const searchEmployees = async (req, res, next) => {
 export const createDisciplinaryAction = async (req, res, next) => {
   try {
     const { employees, warningType, description, actionDate } = req.body || {};
+
+    // Check if any warning types exist at all
+    const warningTypeCount = await WarningType.countDocuments();
+    if (warningTypeCount === 0) {
+      res.status(400);
+      throw new Error(
+        "No warning types exist. Please create warning types first.",
+      );
+    }
 
     if (!employees || !Array.isArray(employees) || employees.length === 0) {
       res.status(400);

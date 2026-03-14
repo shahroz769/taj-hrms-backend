@@ -28,7 +28,7 @@ const payrollErrorSchema = new mongoose.Schema(
       required: true,
     },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const salarySegmentSchema = new mongoose.Schema(
@@ -46,7 +46,7 @@ const salarySegmentSchema = new mongoose.Schema(
     segmentBasicAmount: Number,
     segmentAllowanceAmount: Number,
   },
-  { _id: false }
+  { _id: false },
 );
 
 const payrollSchema = new mongoose.Schema(
@@ -97,8 +97,19 @@ const payrollSchema = new mongoose.Schema(
       basicSalaryAmount: { type: Number, default: 0 },
       allowanceAmount: { type: Number, default: 0 },
       latePenaltyAmount: { type: Number, default: 0 },
+      manualDeductionAmount: { type: Number, default: 0 },
       arrearsAmount: { type: Number, default: 0 },
       totalSalary: { type: Number, default: 0 },
+    },
+    deductionBreakdown: {
+      type: [
+        {
+          reason: String,
+          amount: Number,
+          date: Date,
+        },
+      ],
+      default: [],
     },
     allowanceBreakdown: {
       type: [
@@ -151,12 +162,15 @@ const payrollSchema = new mongoose.Schema(
       },
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 payrollSchema.index({ employee: 1, year: 1, month: 1 }, { unique: true });
 payrollSchema.index({ year: 1, month: 1, createdAt: -1 });
-payrollSchema.index({ "employeeSnapshot.fullName": "text", "employeeSnapshot.employeeID": "text" });
+payrollSchema.index({
+  "employeeSnapshot.fullName": "text",
+  "employeeSnapshot.employeeID": "text",
+});
 
 const Payroll = mongoose.model("Payroll", payrollSchema);
 

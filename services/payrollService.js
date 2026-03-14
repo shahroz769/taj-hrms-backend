@@ -1,4 +1,5 @@
 import Attendance from "../models/Attendance.js";
+import Deduction from "../models/Deduction.js";
 import EmployeeShift from "../models/EmployeeShift.js";
 import LeaveApplication from "../models/LeaveApplication.js";
 import Payroll from "../models/Payroll.js";
@@ -6,7 +7,10 @@ import PayrollArrearsLedger from "../models/PayrollArrearsLedger.js";
 import BasicSalaryHistory from "../models/BasicSalaryHistory.js";
 import AllowancePolicyHistory from "../models/AllowancePolicyHistory.js";
 import AllowancePolicyAmountHistory from "../models/AllowancePolicyAmountHistory.js";
-import { getMonthStartEndUtcForPakistan, PAKISTAN_TZ } from "../utils/timezone.js";
+import {
+  getMonthStartEndUtcForPakistan,
+  PAKISTAN_TZ,
+} from "../utils/timezone.js";
 import { formatInTimeZone } from "date-fns-tz";
 
 const DAY_NAMES = [
@@ -19,7 +23,8 @@ const DAY_NAMES = [
   "Saturday",
 ];
 
-const round2 = (value) => Math.round((Number(value) + Number.EPSILON) * 100) / 100;
+const round2 = (value) =>
+  Math.round((Number(value) + Number.EPSILON) * 100) / 100;
 
 const keyByPKDate = (date) => formatInTimeZone(date, PAKISTAN_TZ, "yyyy-MM-dd");
 
@@ -46,16 +51,20 @@ const getAllowanceBreakdown = (policy, components) => {
 
   const namesById = new Map(
     (policy.components || []).map((component) => {
-      const id = component.allowanceComponent?._id?.toString() || component.allowanceComponent?.toString();
+      const id =
+        component.allowanceComponent?._id?.toString() ||
+        component.allowanceComponent?.toString();
       const name = component.allowanceComponent?.name || "Allowance";
       return [id, name];
-    })
+    }),
   );
 
   return (components || []).map((component) => ({
-    name: namesById.get(
-      component.allowanceComponent?._id?.toString() || component.allowanceComponent?.toString()
-    ) || "Allowance",
+    name:
+      namesById.get(
+        component.allowanceComponent?._id?.toString() ||
+          component.allowanceComponent?.toString(),
+      ) || "Allowance",
     amount: Number(component.amount || 0),
   }));
 };
@@ -82,7 +91,10 @@ const getSalaryFromHistory = (employee, salaryHistory, date) => {
 };
 
 const getPolicyIdFromHistory = (employee, assignmentHistory, date) => {
-  const fallback = employee.allowancePolicy?._id?.toString() || employee.allowancePolicy?.toString() || null;
+  const fallback =
+    employee.allowancePolicy?._id?.toString() ||
+    employee.allowancePolicy?.toString() ||
+    null;
 
   if (!assignmentHistory?.length) return fallback;
 
@@ -132,7 +144,10 @@ const getPolicyComponentsForDate = ({ policy, amountHistory = [], date }) => {
 const getShiftForDate = (assignments, date) => {
   for (let index = assignments.length - 1; index >= 0; index -= 1) {
     const assignment = assignments[index];
-    if (assignment.effectiveDate <= date && (!assignment.endDate || assignment.endDate >= date)) {
+    if (
+      assignment.effectiveDate <= date &&
+      (!assignment.endDate || assignment.endDate >= date)
+    ) {
       return assignment.shift || null;
     }
   }
@@ -140,7 +155,11 @@ const getShiftForDate = (assignments, date) => {
   return null;
 };
 
-const getWorkingDatesForEmployee = async ({ employeeId, monthStartUtc, nextMonthStartUtc }) => {
+const getWorkingDatesForEmployee = async ({
+  employeeId,
+  monthStartUtc,
+  nextMonthStartUtc,
+}) => {
   const assignments = await EmployeeShift.find({
     employee: employeeId,
     effectiveDate: { $lt: nextMonthStartUtc },
@@ -165,7 +184,11 @@ const getWorkingDatesForEmployee = async ({ employeeId, monthStartUtc, nextMonth
   return workingDates;
 };
 
-const buildLeaveMap = async ({ employeeId, monthStartUtc, nextMonthStartUtc }) => {
+const buildLeaveMap = async ({
+  employeeId,
+  monthStartUtc,
+  nextMonthStartUtc,
+}) => {
   const approvedLeaves = await LeaveApplication.find({
     employee: employeeId,
     status: "Approved",
@@ -216,7 +239,11 @@ export const classifyDay = ({ attendance, leaveMap, dateKey }) => {
   return { type: "absent", payableFactor: 0 };
 };
 
-const buildAttendanceMap = async ({ employeeId, monthStartUtc, nextMonthStartUtc }) => {
+const buildAttendanceMap = async ({
+  employeeId,
+  monthStartUtc,
+  nextMonthStartUtc,
+}) => {
   const attendanceRecords = await Attendance.find({
     employee: employeeId,
     date: { $gte: monthStartUtc, $lt: nextMonthStartUtc },
@@ -231,16 +258,19 @@ const buildAttendanceMap = async ({ employeeId, monthStartUtc, nextMonthStartUtc
   return byDate;
 };
 
-const getPoliciesByIds = async (policyIds, AllowancePolicyModel, session = null) => {
+const getPoliciesByIds = async (
+  policyIds,
+  AllowancePolicyModel,
+  session = null,
+) => {
   const uniquePolicyIds = [...new Set(policyIds.filter(Boolean))];
   if (!uniquePolicyIds.length) return new Map();
 
-  const policies = await AllowancePolicyModel.find({ _id: { $in: uniquePolicyIds } })
+  const policies = await AllowancePolicyModel.find({
+    _id: { $in: uniquePolicyIds },
+  })
     .session(session)
-    .populate(
-    "components.allowanceComponent",
-    "name"
-  );
+    .populate("components.allowanceComponent", "name");
 
   return new Map(policies.map((policy) => [policy._id.toString(), policy]));
 };
@@ -251,7 +281,10 @@ export const calculateLatePenalty = (lateDayBasicRates) => {
 
   let totalPenalty = 0;
   for (let index = 0; index < groups; index += 1) {
-    const triggerRate = lateDayBasicRates[index * 3 + 2] || lateDayBasicRates[lateDayBasicRates.length - 1] || 0;
+    const triggerRate =
+      lateDayBasicRates[index * 3 + 2] ||
+      lateDayBasicRates[lateDayBasicRates.length - 1] ||
+      0;
     totalPenalty += triggerRate * 0.5;
   }
 
@@ -269,7 +302,10 @@ export const calculateEmployeePayroll = async ({
   AllowancePolicyModel,
   session = null,
 }) => {
-  const { monthStartUtc, nextMonthStartUtc } = getMonthStartEndUtcForPakistan(year, month);
+  const { monthStartUtc, nextMonthStartUtc } = getMonthStartEndUtcForPakistan(
+    year,
+    month,
+  );
 
   const [salaryHistory, assignmentHistory] = await Promise.all([
     BasicSalaryHistory.find({
@@ -294,11 +330,16 @@ export const calculateEmployeePayroll = async ({
   ]);
 
   const policyIds = [
-    employee.allowancePolicy?._id?.toString() || employee.allowancePolicy?.toString(),
+    employee.allowancePolicy?._id?.toString() ||
+      employee.allowancePolicy?.toString(),
     ...policyIdsFromHistory,
   ];
 
-  const policiesMap = await getPoliciesByIds(policyIds, AllowancePolicyModel, session);
+  const policiesMap = await getPoliciesByIds(
+    policyIds,
+    AllowancePolicyModel,
+    session,
+  );
 
   const amountHistories = await AllowancePolicyAmountHistory.find({
     allowancePolicy: { $in: [...policiesMap.keys()] },
@@ -319,9 +360,21 @@ export const calculateEmployeePayroll = async ({
   }
 
   const [workingDates, attendanceMap, leaveMap] = await Promise.all([
-    getWorkingDatesForEmployee({ employeeId: employee._id, monthStartUtc, nextMonthStartUtc }),
-    buildAttendanceMap({ employeeId: employee._id, monthStartUtc, nextMonthStartUtc }),
-    buildLeaveMap({ employeeId: employee._id, monthStartUtc, nextMonthStartUtc }),
+    getWorkingDatesForEmployee({
+      employeeId: employee._id,
+      monthStartUtc,
+      nextMonthStartUtc,
+    }),
+    buildAttendanceMap({
+      employeeId: employee._id,
+      monthStartUtc,
+      nextMonthStartUtc,
+    }),
+    buildLeaveMap({
+      employeeId: employee._id,
+      monthStartUtc,
+      nextMonthStartUtc,
+    }),
   ]);
 
   const totalScheduledDays = workingDates.length;
@@ -361,14 +414,20 @@ export const calculateEmployeePayroll = async ({
 
     const basicSalaryMonthly = getSalaryFromHistory(
       employee,
-      salaryHistory.map((entry) => ({ ...entry, effectiveDate: new Date(entry.effectiveDate) })),
-      date
+      salaryHistory.map((entry) => ({
+        ...entry,
+        effectiveDate: new Date(entry.effectiveDate),
+      })),
+      date,
     );
 
     const policyId = getPolicyIdFromHistory(
       employee,
-      assignmentHistory.map((entry) => ({ ...entry, effectiveDate: new Date(entry.effectiveDate) })),
-      date
+      assignmentHistory.map((entry) => ({
+        ...entry,
+        effectiveDate: new Date(entry.effectiveDate),
+      })),
+      date,
     );
 
     const policy = policyId ? policiesMap.get(policyId) : null;
@@ -433,36 +492,70 @@ export const calculateEmployeePayroll = async ({
   }
 
   const unsettledArrearsEntries = includeArrears
-    ? await PayrollArrearsLedger.find({ employee: employee._id, settled: false })
-      .session(session)
+    ? await PayrollArrearsLedger.find({
+        employee: employee._id,
+        settled: false,
+      })
+        .session(session)
         .sort({ sourceYear: 1, sourceMonth: 1 })
         .lean()
     : [];
 
   const arrearsAmount = round2(
     unsettledArrearsEntries
-      .filter((entry) => isEarlierMonth(entry.sourceYear, entry.sourceMonth, year, month))
-      .reduce((sum, entry) => sum + Number(entry.amount || 0), 0)
+      .filter((entry) =>
+        isEarlierMonth(entry.sourceYear, entry.sourceMonth, year, month),
+      )
+      .reduce((sum, entry) => sum + Number(entry.amount || 0), 0),
   );
 
-  const totalSalary = round2(grossSalary - latePenaltyAmount + arrearsAmount);
+  // ── Manual Deductions ──
+  const { monthStartUtc: deductionMonthStart, nextMonthStartUtc: deductionMonthEnd } =
+    getMonthStartEndUtcForPakistan(year, month);
+
+  const deductionRecords = await Deduction.find({
+    employee: employee._id,
+    date: { $gte: deductionMonthStart, $lt: deductionMonthEnd },
+  })
+    .sort({ date: 1 })
+    .lean();
+
+  const manualDeductionAmount = round2(
+    deductionRecords.reduce((sum, d) => sum + Number(d.amount || 0), 0),
+  );
+
+  const deductionBreakdown = deductionRecords.map((d) => ({
+    reason: d.reason || "Deduction",
+    amount: Number(d.amount || 0),
+    date: d.date,
+  }));
+
+  const totalSalary = round2(grossSalary - latePenaltyAmount - manualDeductionAmount + arrearsAmount);
 
   const monthEndDate = new Date(nextMonthStartUtc);
   monthEndDate.setUTCDate(monthEndDate.getUTCDate() - 1);
 
   const monthEndPolicyId = getPolicyIdFromHistory(
     employee,
-    assignmentHistory.map((entry) => ({ ...entry, effectiveDate: new Date(entry.effectiveDate) })),
-    monthEndDate
+    assignmentHistory.map((entry) => ({
+      ...entry,
+      effectiveDate: new Date(entry.effectiveDate),
+    })),
+    monthEndDate,
   );
-  const monthEndPolicy = monthEndPolicyId ? policiesMap.get(monthEndPolicyId) : null;
+  const monthEndPolicy = monthEndPolicyId
+    ? policiesMap.get(monthEndPolicyId)
+    : null;
   const monthEndComponents = getPolicyComponentsForDate({
     policy: monthEndPolicy,
     amountHistory: amountHistoryMap.get(monthEndPolicyId) || [],
     date: monthEndDate,
   }).components;
 
-  const allowanceBreakdown = getAllowanceBreakdown(monthEndPolicy, monthEndComponents);
+  const allowanceBreakdown = getAllowanceBreakdown(
+    monthEndPolicy,
+    monthEndComponents,
+  );
 
   return {
     employee: employee._id,
@@ -497,12 +590,74 @@ export const calculateEmployeePayroll = async ({
       basicSalaryAmount: round2(basicSalaryAmount),
       allowanceAmount: round2(allowanceAmount),
       latePenaltyAmount,
+      manualDeductionAmount,
       arrearsAmount,
       totalSalary,
+      perDaySalary: round2(
+        Number(
+          getSalaryFromHistory(
+            employee,
+            salaryHistory.map((entry) => ({
+              ...entry,
+              effectiveDate: new Date(entry.effectiveDate),
+            })),
+            new Date(nextMonthStartUtc.getTime() - 86400000),
+          ) || 0,
+        ) / (totalScheduledDays || 1),
+      ),
+      scheduledDays: totalScheduledDays,
+      earnedBasic: round2(
+        (Number(
+          getSalaryFromHistory(
+            employee,
+            salaryHistory.map((entry) => ({
+              ...entry,
+              effectiveDate: new Date(entry.effectiveDate),
+            })),
+            new Date(nextMonthStartUtc.getTime() - 86400000),
+          ) || 0,
+        ) /
+          (totalScheduledDays || 1)) *
+          present,
+      ),
+      paidLeaveAmount: round2(
+        (Number(
+          getSalaryFromHistory(
+            employee,
+            salaryHistory.map((entry) => ({
+              ...entry,
+              effectiveDate: new Date(entry.effectiveDate),
+            })),
+            new Date(nextMonthStartUtc.getTime() - 86400000),
+          ) || 0,
+        ) /
+          (totalScheduledDays || 1)) *
+          paidLeaves,
+      ),
+      halfDayDeduction: round2(
+        (Number(
+          getSalaryFromHistory(
+            employee,
+            salaryHistory.map((entry) => ({
+              ...entry,
+              effectiveDate: new Date(entry.effectiveDate),
+            })),
+            new Date(nextMonthStartUtc.getTime() - 86400000),
+          ) || 0,
+        ) /
+          (totalScheduledDays || 1)) *
+          halfDay *
+          0.5,
+      ),
+      lateCount: late,
+      latePenaltyGroups: Math.floor(late / 3),
     },
+    deductionBreakdown,
     allowanceBreakdown,
     arrearsLedgerEntries: unsettledArrearsEntries
-      .filter((entry) => isEarlierMonth(entry.sourceYear, entry.sourceMonth, year, month))
+      .filter((entry) =>
+        isEarlierMonth(entry.sourceYear, entry.sourceMonth, year, month),
+      )
       .map((entry) => entry._id),
     generatedBy,
     generatedAt: new Date(),
@@ -510,7 +665,11 @@ export const calculateEmployeePayroll = async ({
   };
 };
 
-export const settleArrearsForPayroll = async ({ payrollId, arrearsLedgerEntryIds = [], session = null }) => {
+export const settleArrearsForPayroll = async ({
+  payrollId,
+  arrearsLedgerEntryIds = [],
+  session = null,
+}) => {
   if (!arrearsLedgerEntryIds.length) return;
 
   await PayrollArrearsLedger.updateMany(
@@ -522,11 +681,14 @@ export const settleArrearsForPayroll = async ({ payrollId, arrearsLedgerEntryIds
         settledAt: new Date(),
       },
     },
-    { session }
+    { session },
   );
 };
 
-export const rollbackArrearsSettledByPayroll = async (payrollId, session = null) => {
+export const rollbackArrearsSettledByPayroll = async (
+  payrollId,
+  session = null,
+) => {
   if (!payrollId) return;
 
   await PayrollArrearsLedger.updateMany(
@@ -538,7 +700,7 @@ export const rollbackArrearsSettledByPayroll = async (payrollId, session = null)
         settledAt: null,
       },
     },
-    { session }
+    { session },
   );
 };
 
@@ -585,18 +747,23 @@ export const syncArrearsForEmployee = async ({
     });
 
     const expectedWithoutArrears = round2(
-      Number(recomputed.calculations.grossSalary || 0) - Number(recomputed.calculations.latePenaltyAmount || 0)
+      Number(recomputed.calculations.grossSalary || 0) -
+        Number(recomputed.calculations.latePenaltyAmount || 0),
     );
 
     const existingWithoutArrears = round2(
-      Number(payroll.calculations?.grossSalary || 0) - Number(payroll.calculations?.latePenaltyAmount || 0)
+      Number(payroll.calculations?.grossSalary || 0) -
+        Number(payroll.calculations?.latePenaltyAmount || 0),
     );
 
     const diff = round2(expectedWithoutArrears - existingWithoutArrears);
 
     if (Math.abs(diff) < 0.01) {
       if (existingLedger && !existingLedger.settled) {
-        await PayrollArrearsLedger.deleteOne({ _id: existingLedger._id }, { session });
+        await PayrollArrearsLedger.deleteOne(
+          { _id: existingLedger._id },
+          { session },
+        );
       }
       continue;
     }
@@ -608,14 +775,19 @@ export const syncArrearsForEmployee = async ({
       existingLedger.$session(session);
       await existingLedger.save();
     } else {
-      await PayrollArrearsLedger.create([{
-        employee: employee._id,
-        sourceYear: payroll.year,
-        sourceMonth: payroll.month,
-        amount: diff,
-        reason: "Backdated effective date adjustment",
-        createdBy: generatedBy || null,
-      }], { session });
+      await PayrollArrearsLedger.create(
+        [
+          {
+            employee: employee._id,
+            sourceYear: payroll.year,
+            sourceMonth: payroll.month,
+            amount: diff,
+            reason: "Backdated effective date adjustment",
+            createdBy: generatedBy || null,
+          },
+        ],
+        { session },
+      );
     }
   }
 };
