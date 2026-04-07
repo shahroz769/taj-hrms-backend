@@ -12,9 +12,10 @@ export const receiveAttendanceWebhook = async (req, res) => {
 
     if (!Array.isArray(records) || records.length === 0) return;
 
-    const docs = records.map(({ userID, checkTime }) => ({
+    const docs = records.map(({ userID, checkTime, attState }) => ({
       userID: String(userID),
       checkTime: new Date(checkTime),
+      attState,
     }));
 
     await TestAttendance.insertMany(docs, { ordered: false });

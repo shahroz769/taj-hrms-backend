@@ -4,6 +4,10 @@ const testAttendanceSchema = new mongoose.Schema(
   {
     userID: { type: String },
     checkTime: { type: Date },
+    attState: {
+      type: String,
+      enum: ["check-in", "check-out", "break-out", "break-in", "overtime-in", "overtime-out"],
+    },
   },
   { timestamps: true }
 );
