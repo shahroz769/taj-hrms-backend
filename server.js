@@ -24,6 +24,8 @@ import deductionRouter from "./routes/deductionRoutes.js";
 import loanRouter from "./routes/loanRoutes.js";
 import dashboardRouter from "./routes/dashboardRoutes.js";
 import webhookRouter from "./routes/webhookRoutes.js";
+import zktecoAdmsRouter from "./routes/zktecoAdmsRoutes.js";
+import zktecoDeviceRouter from "./routes/zktecoDeviceRoutes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import connectDB from "./config/db.js";
 import chalk from "chalk";
@@ -32,6 +34,8 @@ dotenv.config();
 
 const app = express();
 const PORT = globalThis.process?.env.PORT || 3000;
+
+app.set("trust proxy", true);
 
 // Connect to MongoDB
 connectDB();
@@ -50,6 +54,11 @@ app.use(
     credentials: true,
   }),
 );
+
+// ZKTeco ADMS device routes — MUST be before express.json() (raw text/plain body)
+app.use("/iclock", zktecoAdmsRouter);
+app.use("/", zktecoAdmsRouter);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -81,6 +90,7 @@ app.use("/api/deductions", deductionRouter);
 app.use("/api/loans", loanRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/webhook", webhookRouter);
+app.use("/api/zkteco", zktecoDeviceRouter);
 
 // 404 Fallback
 app.use((req, res, next) => {

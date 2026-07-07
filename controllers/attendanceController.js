@@ -8,7 +8,14 @@ import LeaveApplication from "../models/LeaveApplication.js";
 import LeaveType from "../models/LeaveType.js";
 import LeaveBalance from "../models/LeaveBalance.js";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
-import { PAKISTAN_TZ } from "../utils/timezone.js";
+import {
+  PAKISTAN_TZ,
+  getMonthRangeUtcForPakistan,
+  pkCalendarDateUtcFromParts,
+  pkCalendarDayFromDate,
+  pkDayNameFromParts,
+  pkTodayDateUtc,
+} from "../utils/timezone.js";
 import { getAttendanceRules } from "./attendanceRuleController.js";
 
 // ---------------------------------------------------------------------------
@@ -931,8 +938,7 @@ export const getMonthlyAttendance = async (req, res, next) => {
     const y = Number(year);
     const m = Number(month);
 
-    const startOfMonth = new Date(Date.UTC(y, m, 1));
-    const endOfMonth = new Date(Date.UTC(y, m + 1, 0, 23, 59, 59, 999));
+    const { startOfMonth, endOfMonth } = getMonthRangeUtcForPakistan(y, m);
 
     // Build employee filter
     const employeeFilter = { status: { $in: ["Active", "Resigned"] } };
@@ -1039,7 +1045,7 @@ export const getMonthlyAttendance = async (req, res, next) => {
     const recordMap = {};
     for (const rec of records) {
       const empKey = rec.employee.toString();
-      const day = new Date(rec.date).getUTCDate();
+      const day = pkCalendarDayFromDate(rec.date);
       const linkedLeaveId = rec.linkedLeaveApplication?.toString() || null;
       const leaveMeta = linkedLeaveId ? leaveMetaMap[linkedLeaveId] : null;
       if (!recordMap[empKey]) recordMap[empKey] = {};
@@ -1066,19 +1072,15 @@ export const getMonthlyAttendance = async (req, res, next) => {
 
     const result = employees.map((emp) => {
       const empRecords = recordMap[emp._id.toString()] || {};
-      const today = new Date();
-      const todayUTC = new Date(
-        Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()),
-      );
+      const todayUTC = pkTodayDateUtc();
 
       const { joiningDate, resignationDate } = getEmploymentBounds(emp);
 
       const empShiftHistory = shiftHistoryMap[emp._id.toString()] || [];
-      const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
       const records = {};
       for (let d = 1; d <= daysInMonth; d++) {
-        const dateUTC = new Date(Date.UTC(y, m, d));
+        const dateUTC = pkCalendarDateUtcFromParts(y, m, d);
         if (joiningDate && dateUTC < joiningDate) {
           records[d] = null;
         } else if (resignationDate && dateUTC > resignationDate) {
@@ -1091,7 +1093,7 @@ export const getMonthlyAttendance = async (req, res, next) => {
           // Past/today with no record — infer from shift history on that specific date
           const workingDays = getWorkingDaysForDate(empShiftHistory, dateUTC);
           if (workingDays) {
-            const dayName = DAY_NAMES[dateUTC.getUTCDay()];
+            const dayName = pkDayNameFromParts(y, m, d);
             if (!workingDays.includes(dayName)) {
               records[d] = { status: "Off", _inferred: true }; // synthetic off-day (no DB record)
             } else {
@@ -1118,12 +1120,12 @@ export const getMonthlyAttendance = async (req, res, next) => {
       };
 
       for (let d = 1; d <= daysInMonth; d++) {
-        const dateUTC = new Date(Date.UTC(y, m, d));
+        const dateUTC = pkCalendarDateUtcFromParts(y, m, d);
         if (joiningDate && dateUTC < joiningDate) continue;
         if (resignationDate && dateUTC > resignationDate) continue;
 
         const workingDays = getWorkingDaysForDate(empShiftHistory, dateUTC);
-        const dayName = DAY_NAMES[dateUTC.getUTCDay()];
+        const dayName = pkDayNameFromParts(y, m, d);
         const isScheduledWorkingDay =
           Array.isArray(workingDays) && workingDays.includes(dayName);
 
@@ -1205,8 +1207,7 @@ export const getEmployeeMonthlyAttendance = async (req, res, next) => {
     const y = Number(year);
     const m = Number(month);
 
-    const startOfMonth = new Date(Date.UTC(y, m, 1));
-    const endOfMonth = new Date(Date.UTC(y, m + 1, 0, 23, 59, 59, 999));
+    const { startOfMonth, endOfMonth } = getMonthRangeUtcForPakistan(y, m);
 
     const records = await Attendance.find({
       employee: id,

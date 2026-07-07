@@ -38,3 +38,41 @@ export const getMonthStartEndUtcForPakistan = (year, month) => {
 
   return { monthStartUtc, nextMonthStartUtc };
 };
+
+/** Calendar day (1–31) in Pakistan for a stored attendance date. */
+export const pkCalendarDayFromDate = (date) =>
+  Number(formatInTimeZone(date, PAKISTAN_TZ, "d"));
+
+/** UTC instant for Pakistan calendar midnight (year + 0-indexed month + day). */
+export const pkCalendarDateUtcFromParts = (year, month0Indexed, day) => {
+  const y = Number(year);
+  const m = Number(month0Indexed) + 1;
+  const d = Number(day);
+  return fromZonedTime(`${y}-${pad2(m)}-${pad2(d)}T00:00:00`, PAKISTAN_TZ);
+};
+
+/** UTC instant for today's calendar date in Pakistan. */
+export const pkTodayDateUtc = () => {
+  const pkDate = formatInTimeZone(new Date(), PAKISTAN_TZ, "yyyy-MM-dd");
+  return fromZonedTime(`${pkDate}T00:00:00`, PAKISTAN_TZ);
+};
+
+/** Full weekday name (e.g. "Monday") for a Pakistan calendar date. */
+export const pkDayNameFromParts = (year, month0Indexed, day) =>
+  formatInTimeZone(
+    pkCalendarDateUtcFromParts(year, month0Indexed, day),
+    PAKISTAN_TZ,
+    "EEEE",
+  );
+
+/** Inclusive month range in UTC for a 0-indexed month viewed in Pakistan time. */
+export const getMonthRangeUtcForPakistan = (year, month0Indexed) => {
+  const { monthStartUtc, nextMonthStartUtc } = getMonthStartEndUtcForPakistan(
+    year,
+    month0Indexed + 1,
+  );
+  return {
+    startOfMonth: monthStartUtc,
+    endOfMonth: new Date(nextMonthStartUtc.getTime() - 1),
+  };
+};

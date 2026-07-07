@@ -32,9 +32,11 @@ const connectDB = async () => {
     const conn = await connectionPromise;
     console.log(chalk.bgGreen(`MongoDB Connected: ${conn.connection.host}/${conn.connection.name}`));
   } catch (error) {
-    connectionPromise = null; // Reset so the next cold start can retry
-    console.error(`Error: ${error.message}`);
-    process.exit(1);
+    connectionPromise = null;
+    console.error(chalk.bgRed(`MongoDB connection error: ${error.message}`));
+    if (process.env.NODE_ENV === "production") {
+      process.exit(1);
+    }
   }
 };
 
